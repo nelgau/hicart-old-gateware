@@ -1,0 +1,9 @@
+-e git://github.com/nmigen/nmigen.git#egg=nmigen
+-e git://github.com/nmigen/nmigen-soc.git#egg=nmigen-soc
+-e git://github.com/nmigen/nmigen-stdio.git#egg=nmigen-stdio
+-e git://github.com/nmigen/nmigen-boards.git#egg=nmigen_boards
+-e git://github.com/lambdaconcept/minerva.git#egg=minerva
+-e git://github.com/ktemkin/lambdasoc.git#egg=lambdasoc
+pyusb
+pyserial
+pyftdi
