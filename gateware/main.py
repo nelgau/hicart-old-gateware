@@ -2,7 +2,7 @@ import struct
 import itertools
 
 from nmigen import *
-from nmigen.build import ResourceError
+from nmigen.build import *
 
 from arch.n64_cic import N64CIC
 from arch.n64_initiator import N64Initiator
