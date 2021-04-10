@@ -82,7 +82,7 @@ class AD16Interface(Elaboratable):
             m.d.comb += valid.eq(fsm.ongoing("VALID"))
 
         # Inputs: valid, ad16.read_sync, bus.ack
-        # Outputs: bus.blk, bus.load, bus.off, bus.cyc, bus.stb, bus.we
+        # Outputs: bus.blk, bus.load, bus.off, bus.cyc, bus.stb, bus.we, ad16.o, ad16.oe
 
         m.d.sync += [
             self.bus.load.eq(0),
@@ -107,6 +107,7 @@ class AD16Interface(Elaboratable):
                 with m.If(~valid):
                     m.next = "IDLE"
                 with m.Elif(self.bus.ack):
+                    m.d.sync += self.ad16.ad.o.eq(self.bus.dat_r)
                     m.next = "VALID"
 
             with m.State("VALID"):
@@ -118,6 +119,8 @@ class AD16Interface(Elaboratable):
 
             m.d.comb += self.bus.blk.eq(~fsm.ongoing("IDLE"))
             m.d.comb += self.bus.cyc.eq(fsm.ongoing("READ"))
+
+            m.d.comb += self.ad16.ad.oe.eq(fsm.ongoing("VALID"))
 
         return m
 
@@ -171,7 +174,9 @@ class AD16InterfaceTest(ModuleTestCase):
         yield self.dut.ad16.ad.i    .eq(0x4321)
         yield
         yield self.dut.ad16.ale_l   .eq(1)
-        yield from self.advance_cycles(5)
+        yield
+
+        yield from self.advance_cycles(4)
 
         # 
 
@@ -192,18 +197,30 @@ class AD16InterfaceTest(ModuleTestCase):
 
         #
 
+        yield self.dut.bus.dat_r.eq(0xBABE)
         yield self.dut.bus.ack.eq(1)
         yield
+
         yield self.dut.bus.ack.eq(0)
-        yield from self.advance_cycles(2)
+        yield        
+
+        self.assertEqual((yield self.dut.ad16.ad.o),  0xBABE)
+        self.assertEqual((yield self.dut.ad16.ad.oe), 1)
 
         #
 
         yield self.dut.ad16.read   .eq(0)
-        yield from self.advance_cycles(4)
+        yield
+
+        yield from self.advance_cycles(3)
+
+        self.assertEqual((yield self.dut.ad16.ad.oe), 0)
 
         #
 
         yield self.dut.ad16.ale_h   .eq(0)
+        yield
+
         yield from self.advance_cycles(4)
 
+        self.assertEqual((yield self.dut.bus.blk),  0)
