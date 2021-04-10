@@ -132,15 +132,15 @@ class HomeInvaderRevAPlatform(LatticeECP5Platform):
 
         Resource("usb_fifo", 0,
             Subsignal("d",        Pins("L15 M16 M15 N16 N14 P16 P15 R16", dir="io")),
-            Subsignal("rxf",      PinsN("R15", dir="i"), Attrs(PULLMODE="UP")),
-            Subsignal("txe",      PinsN("T15", dir="i"), Attrs(PULLMODE="UP")),
-            Subsignal("rd",       PinsN("R14", dir="o")),
-            Subsignal("wr",       PinsN("T14", dir="o")),
+            Subsignal("rxf",      Pins("R15", dir="i"), Attrs(PULLMODE="NONE")),
+            Subsignal("txe",      Pins("T15", dir="i"), Attrs(PULLMODE="NONE")),
+            Subsignal("rd",       Pins("R14", dir="o")),
+            Subsignal("wr",       Pins("T14", dir="o")),
             Subsignal("siwu",     Pins("R13", dir="o")),
 
             # Only used in synchronous mode.
             Subsignal("clkout",   Pins("L16", dir="i")),
-            Subsignal("oe",       PinsN("T13", dir="o"))
+            Subsignal("oe",       Pins("T13", dir="o"))
         ),
 
         Resource("pmod", 0,

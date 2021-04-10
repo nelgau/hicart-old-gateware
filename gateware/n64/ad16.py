@@ -1,13 +1,12 @@
-import unittest
-
 from nmigen import *
-from nmigen.hdl.ast import Rose, Fell
 from nmigen.hdl.rec import DIR_FANIN, DIR_FANOUT
-from nmigen.lib.cdc import FFSynchronizer, AsyncFFSynchronizer
+from nmigen.lib.cdc import FFSynchronizer
 
 from test import *
 
-class N64AD16Bus(Record):
+from .burst import BurstBus
+
+class AD16(Record):
     def __init__(self):
         super().__init__([
             ('ad', [
@@ -35,27 +34,10 @@ class N64AD16Bus(Record):
             ('nmi',      1, DIR_FANIN),
         ])
 
-class N64AD16TransferBus(Record):
+class AD16Interface(Elaboratable):
     def __init__(self):
-        super().__init__([
-            # Block
-            ('blk',         1,  DIR_FANOUT),
-            ('base',        32, DIR_FANOUT),
-            ('load',        1,  DIR_FANOUT),
-            # Transfer
-            ('off',         8,  DIR_FANOUT),
-            ('dat_w',       16, DIR_FANOUT),            
-            ('dat_r',       16, DIR_FANIN),
-            ('cyc',         1,  DIR_FANOUT),
-            ('stb',         1,  DIR_FANOUT),
-            ('we',          1,  DIR_FANOUT),            
-            ('ack',         1,  DIR_FANIN),
-        ])
-
-class N64AD16Interface(Elaboratable):
-    def __init__(self):
-        self.bus = N64AD16TransferBus()
-        self.ad16 = N64AD16Bus()
+        self.bus = BurstBus()
+        self.ad16 = AD16()
 
     def elaborate(self, platform):
         m = Module()
@@ -139,8 +121,8 @@ class N64AD16Interface(Elaboratable):
 
         return m
 
-class N64AD16InterfaceTest(ModuleTestCase):
-    FRAGMENT_UNDER_TEST = N64AD16Interface
+class AD16InterfaceTest(ModuleTestCase):
+    FRAGMENT_UNDER_TEST = AD16Interface
     SYNC_CLOCK_FREQUENCY = 40e6 
 
     def traces_of_interest(self):

@@ -1,11 +1,9 @@
 import struct
-import unittest
 
 from nmigen import *
 from nmigen.lib.cdc import FFSynchronizer, AsyncFFSynchronizer
 
 from nmigen_soc import wishbone
-from nmigen_soc.memory import MemoryMap
 
 from lambdasoc.cpu.minerva  import MinervaCPU
 from lambdasoc.periph.sram  import SRAMPeripheral
@@ -13,7 +11,7 @@ from lambdasoc.periph.sram  import SRAMPeripheral
 from periph.gpio import GPIOPeripheral
 from test import *
 
-class N64CIC(Elaboratable):
+class CIC(Elaboratable):
     def __init__(self):
         self.reset = Signal()
         self.data_clk = Signal()
@@ -90,8 +88,8 @@ class N64CIC(Elaboratable):
 
         return m
 
-class N64CICTest(ModuleTestCase):
-    FRAGMENT_UNDER_TEST = N64CIC
+class CICTest(ModuleTestCase):
+    FRAGMENT_UNDER_TEST = CIC
     SYNC_CLOCK_FREQUENCY = 40e6
 
     def traces_of_interest(self):

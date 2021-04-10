@@ -1,9 +1,10 @@
--e git://github.com/nmigen/nmigen.git#egg=nmigen
--e git://github.com/nmigen/nmigen-soc.git#egg=nmigen-soc
--e git://github.com/nmigen/nmigen-stdio.git#egg=nmigen-stdio
--e git://github.com/nmigen/nmigen-boards.git#egg=nmigen_boards
--e git://github.com/lambdaconcept/minerva.git#egg=minerva
--e git://github.com/ktemkin/lambdasoc.git#egg=lambdasoc
+git+https://github.com/nmigen/nmigen.git@master
+git+https://github.com/nmigen/nmigen-soc.git@master
+git+https://github.com/nmigen/nmigen-stdio.git@master
+git+https://github.com/nmigen/nmigen-boards.git@master
+git+https://github.com/lambdaconcept/minerva.git
+git+https://github.com/ktemkin/lambdasoc.git
+git+https://github.com/greatscottgadgets/luna.git
 pyusb
 pyserial
 pyftdi

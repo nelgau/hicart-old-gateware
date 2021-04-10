@@ -48,7 +48,6 @@ class FT245Interface(Elaboratable):
         m.submodules.rx_fifo = self._rx_fifo
         m.submodules.tx_fifo = self._tx_fifo
 
-        count = Signal(8, reset=0)
         din = Signal(8)
         rxf = Signal()
         txe = Signal()
@@ -58,6 +57,10 @@ class FT245Interface(Elaboratable):
             FFSynchronizer(self.bus.rxf, rxf, reset=1),
             FFSynchronizer(self.bus.txe, txe, reset=1),
         ]
+
+        count = Signal(8, reset=0)
+        rd = Signal(reset=1)
+        wr = Signal(reset=1)
 
         m.d.sync += [
             self._rx_fifo.w_en.eq(0),
@@ -74,8 +77,8 @@ class FT245Interface(Elaboratable):
 
                     m.d.sync += [
                         self.bus.d.oe           .eq(0),
-                        self.bus.rd             .eq(1),
-                        self.bus.wr             .eq(1),
+                        rd                      .eq(1),
+                        wr                      .eq(1),
                     ]
 
                     with m.If(self._rx_fifo.w_rdy & ~rxf):
@@ -83,7 +86,7 @@ class FT245Interface(Elaboratable):
                         m.next = "READ"
                         m.d.sync += [
                             count               .eq(self.RD_PULSE_CYCLES - 1),
-                            self.bus.rd         .eq(0),         
+                            rd                  .eq(0),         
                         ]
 
                     with m.Elif(self._tx_fifo.r_rdy & ~txe):
@@ -103,7 +106,7 @@ class FT245Interface(Elaboratable):
                         count                   .eq(self.RD_WAIT_CYCLES - 1),
                         self._rx_fifo.w_data    .eq(din),
                         self._rx_fifo.w_en      .eq(1),
-                        self.bus.rd             .eq(1),                     
+                        rd                      .eq(1),                     
                         
                     ]
 
@@ -112,8 +115,13 @@ class FT245Interface(Elaboratable):
                     m.next = "IDLE"
                     m.d.sync += [
                         count                   .eq(self.WR_PULSE_CYCLES - 1),
-                        self.bus.wr             .eq(0),
+                        wr                      .eq(0),
                     ]
+
+        m.d.comb += [
+            self.bus.rd             .eq(rd),
+            self.bus.wr             .eq(wr),
+        ]
 
         m.d.comb += [
             self.rx.data            .eq(self._rx_fifo.r_data),
@@ -158,10 +166,6 @@ class FT245InterfaceTest(ModuleTestCase):
             self.dut.tx.ready,
         ]
 
-    def initialize_signals(self):
-        yield self.dut.bus.rxf.eq(1)
-        yield self.dut.bus.txe.eq(1)
-
     @sync_test_case
     def test_read(self):
         yield from self.advance_cycles(2)
@@ -171,6 +175,8 @@ class FT245InterfaceTest(ModuleTestCase):
 
         yield from self.wait_until(~self.dut.bus.rd, timeout=20)
         yield from self.advance_cycles(2)
+
+        yield self.dut.bus.rxf.eq(1)
         yield self.dut.bus.d.i.eq(0xA9)
 
         yield from self.wait_until( self.dut.bus.rd, timeout=20)
@@ -181,9 +187,11 @@ class FT245InterfaceTest(ModuleTestCase):
         self.assertEqual((yield self.dut.rx.data),  0xA9)
         self.assertEqual((yield self.dut.rx.valid), 1)
 
-
         yield self.dut.rx.ready.eq(1)
         yield
+
+        yield self.dut.rx.ready.eq(0)
+        yield        
 
         self.assertEqual((yield self.dut.rx.valid), 0)
 
