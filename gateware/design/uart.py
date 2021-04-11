@@ -4,6 +4,7 @@ from nmigen import *
 import pyftdi.serialext
 
 from interface.ft245 import FT245Interface
+from stream import ByteDownConverter
 from utils.cli import main_runner
 
 
@@ -20,17 +21,13 @@ class Top(Elaboratable):
 
         m.submodules.car           = platform.clock_domain_generator()
         m.submodules.iface = iface = FT245Interface()
-
-
-        letters = Array(ord(i) for i in "Hello, world! \r\n")
-        current_letter = Signal(range(0, len(letters)))
-
-        with m.If(iface.tx.ready):
-            m.d.sync += current_letter.eq(current_letter + 1)
+        m.submodules.dc    = dc    = ByteDownConverter(byte_width=4)
 
         m.d.comb += [
-            iface.tx.data       .eq(letters[current_letter]),
-            iface.tx.valid      .eq(iface.tx.ready),
+            dc.source.payload   .eq(0xCAFEBABE),
+            dc.source.valid     .eq(dc.source.ready),
+
+            dc.sink             .connect(iface.tx),
         ]
 
         m.d.comb += [

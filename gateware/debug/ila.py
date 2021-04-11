@@ -1,16 +1,13 @@
 from nmigen import *
 from luna.gateware.debug.ila import StreamILA, ILAFrontend
 
+from interface.ft245 import FT245Interface
+from stream import ByteDownConverter
+
 
 class HomeInvaderILA(Elaboratable):
 
     def __init__(self, *, signals, sample_depth, **kwargs):
-
-        #
-        # I/O port
-        #
-        self.tx      = Signal()
-
         # Extract the domain from our keyword arguments, and then translate it to sync
         # before we pass it back below. We'll use a DomainRenamer at the boundary to
         # handle non-sync domains.
@@ -40,18 +37,21 @@ class HomeInvaderILA(Elaboratable):
 
     def elaborate(self, platform):
         m  = Module()
-        m.submodules.ila = ila = self.ila
 
-        # Create our UART transmitter, and connect it to our stream interface.
-        # m.submodules.uart = uart = UARTMultibyteTransmitter(
-        #     byte_width=self.bytes_per_sample,
-        #     divisor=self.divisor
-        # )
-        # m.d.comb +=[
-        #     uart.stream  .stream_eq(ila.stream),
-        #     self.tx      .eq(uart.tx)
-        # ]
+        m.submodules.ila   = ila   = self.ila
+        m.submodules.iface = iface = FT245Interface()
+        m.submodules.dc    = dc    = ByteDownConverter(byte_width=self.bytes_per_sample)
 
+        usb_fifo = platform.request('usb_fifo')
+
+        m.d.comb += [
+            dc.source.payload   .eq(ila.stream.payload),
+            dc.source.valid     .eq(ila.stream.valid),
+            ila.stream.ready    .eq(dc.source.ready),
+
+            dc.sink             .connect(iface.tx),
+            iface.bus           .connect(usb_fifo),
+        ]
 
         # Convert our sync domain to the domain requested by the user, if necessary.
         if self.domain != "sync":
@@ -72,7 +72,7 @@ class HomeInvaderILAFrontend(ILAFrontend):
     def __init__(self, *args, ila, **kwargs):
         import pyftdi.serialext
 
-        self._port = pyftdi.serialext.serial_for_url('ftdi://ftdi:2232h:FT5W8DRI/1', baudrate=3000000)
+        self._port = pyftdi.serialext.serial_for_url('ftdi://ftdi:2232h:FT5RTNBA/1', baudrate=3000000)
         self._port.reset_input_buffer()
 
         super().__init__(ila)
@@ -80,7 +80,7 @@ class HomeInvaderILAFrontend(ILAFrontend):
 
     def _split_samples(self, all_samples):
         """ Returns an iterator that iterates over each sample in the raw binary of samples. """
-        from apollo.support.bits import bits
+        from apollo_fpga.support.bits import bits
 
         sample_width_bytes = self.ila.bytes_per_sample
 
@@ -89,7 +89,7 @@ class HomeInvaderILAFrontend(ILAFrontend):
             raw_sample    = all_samples[i:i + sample_width_bytes]
             sample_length = len(Cat(self.ila.signals))
 
-            yield bits.from_bytes(raw_sample, length=sample_length, byteorder='big')
+            yield bits.from_bytes(raw_sample, length=sample_length, byteorder='little')
 
 
     def _read_samples(self):

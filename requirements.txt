@@ -5,6 +5,7 @@ git+https://github.com/nmigen/nmigen-boards.git@master
 git+https://github.com/lambdaconcept/minerva.git
 git+https://github.com/ktemkin/lambdasoc.git
 git+https://github.com/greatscottgadgets/luna.git
+apollo-fpga
 pyusb
 pyserial
 pyftdi

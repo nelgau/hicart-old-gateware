@@ -1,10 +1,12 @@
 from nmigen import *
 from nmigen.hdl.rec import DIR_FANIN, DIR_FANOUT
-
 from nmigen.lib.cdc import FFSynchronizer
 from nmigen.lib.fifo import SyncFIFO
 
+from stream import BasicStream
+
 from test import *
+
 
 class FT245Bus(Record):
     def __init__(self):
@@ -18,14 +20,6 @@ class FT245Bus(Record):
             ('txe', 1, DIR_FANIN),
             ('rd',  1, DIR_FANOUT),
             ('wr',  1, DIR_FANOUT)
-        ])
-
-class BasicStream(Record):
-    def __init__(self, width):
-        super().__init__([
-            ('data',  width, DIR_FANOUT),
-            ('valid', 1,     DIR_FANOUT),
-            ('ready', 1,     DIR_FANIN)
         ])
 
 class FT245Interface(Elaboratable):
@@ -124,11 +118,11 @@ class FT245Interface(Elaboratable):
         ]
 
         m.d.comb += [
-            self.rx.data            .eq(self._rx_fifo.r_data),
+            self.rx.payload         .eq(self._rx_fifo.r_data),
             self.rx.valid           .eq(self._rx_fifo.r_rdy),
             self._rx_fifo.r_en      .eq(self.rx.ready),
 
-            self._tx_fifo.w_data    .eq(self.tx.data),
+            self._tx_fifo.w_data    .eq(self.tx.payload),
             self._tx_fifo.w_en      .eq(self.tx.valid),
             self.tx.ready           .eq(self._tx_fifo.w_rdy),
         ]
@@ -157,11 +151,11 @@ class FT245InterfaceTest(ModuleTestCase):
             self.dut.bus.rd,
             self.dut.bus.wr,
 
-            self.dut.rx.data,
+            self.dut.rx.payload,
             self.dut.rx.valid,
             self.dut.rx.ready,
 
-            self.dut.tx.data,
+            self.dut.tx.payload,
             self.dut.tx.valid,
             self.dut.tx.ready,
         ]
@@ -184,8 +178,8 @@ class FT245InterfaceTest(ModuleTestCase):
         yield self.dut.bus.rxf.eq(1)
         yield self.dut.bus.d.i.eq(0)
 
-        self.assertEqual((yield self.dut.rx.data),  0xA9)
-        self.assertEqual((yield self.dut.rx.valid), 1)
+        self.assertEqual((yield self.dut.rx.payload), 0xA9)
+        self.assertEqual((yield self.dut.rx.valid),   1)
 
         yield self.dut.rx.ready.eq(1)
         yield
@@ -201,7 +195,7 @@ class FT245InterfaceTest(ModuleTestCase):
 
         self.assertEqual((yield self.dut.tx.ready), 1)
 
-        yield self.dut.tx.data.eq(0xBB)
+        yield self.dut.tx.payload.eq(0xBB)
         yield self.dut.tx.valid.eq(1)
         yield
         yield self.dut.tx.valid.eq(0)
