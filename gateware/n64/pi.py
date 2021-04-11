@@ -38,7 +38,8 @@ class PIInitiator(Elaboratable):
 
 class PIInitiatorTest(ModuleTestCase):
 
-    class DUT:
+    class DUT(Elaboratable):
+
         def __init__(self):
             self.ad16 = AD16()
 
@@ -71,7 +72,6 @@ class PIInitiatorTest(ModuleTestCase):
             return m
 
     FRAGMENT_UNDER_TEST = DUT
-    SYNC_CLOCK_FREQUENCY = 40e6
 
     def traces_of_interest(self):
         return [

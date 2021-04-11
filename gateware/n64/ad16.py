@@ -126,7 +126,6 @@ class AD16Interface(Elaboratable):
 
 class AD16InterfaceTest(ModuleTestCase):
     FRAGMENT_UNDER_TEST = AD16Interface
-    SYNC_CLOCK_FREQUENCY = 40e6 
 
     def traces_of_interest(self):
         return [

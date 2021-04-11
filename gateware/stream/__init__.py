@@ -76,7 +76,6 @@ class ByteDownConverter(Elaboratable):
 class ByteDownConverterTest(ModuleTestCase):
     FRAGMENT_UNDER_TEST = ByteDownConverter
     FRAGMENT_ARGUMENTS = dict(byte_width=4)
-    SYNC_CLOCK_FREQUENCY = 40e6
 
     def traces_of_interest(self):
         return [

@@ -4,7 +4,7 @@ import unittest
 
 from functools import wraps
 
-from nmigen import Signal
+from nmigen import Fragment, Signal
 from nmigen.sim import Simulator
 
 def sync_test_case(process_function):
@@ -48,7 +48,17 @@ class ModuleTestCase(unittest.TestCase):
 
     def setUp(self):
         self.dut = self.instantiate_dut()
+        
+
+        # Elaborate and prepare the fragment now so that we can add the clock signals
+        # as traces of interest below.
+        # self.fragment = Fragment.get(self.dut, platform=None)
+        # self.sim = Simulator(self.fragment)
+
+
+
         self.sim = Simulator(self.dut)
+
         self.sim.add_clock(1.0 / self.CLOCK_FREQUENCY, domain='sync')
 
     def initialize_signals(self):
@@ -68,9 +78,20 @@ class ModuleTestCase(unittest.TestCase):
             vcd_name = self.get_vcd_name()
             if vcd_suffix:
                 vcd_name = "{}_{}".format(vcd_name, vcd_suffix)
+            
+            traces = []
+
+            # Add clock signals to the traces by default
+            fragment = self.sim._fragment
+
+            for domain in fragment.iter_domains():
+                cd = fragment.domains[domain]
+                traces.extend((cd.clk, cd.rst))
+
+            # Add any user-supplied traces after the clock domains
+            traces += self.traces_of_interest()
 
             # ... and run the simulation while writing them.
-            traces = self.traces_of_interest()
             with self.sim.write_vcd(vcd_name + ".vcd", vcd_name + ".gtkw", traces=traces):
                 self.sim.run()
         else:

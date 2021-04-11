@@ -124,7 +124,6 @@ class N64Initiator(Elaboratable):
 
 class N64InitiatorTest(ModuleTestCase):
     FRAGMENT_UNDER_TEST = N64Initiator
-    SYNC_CLOCK_FREQUENCY = 40e6 
 
     def traces_of_interest(self):
         return [

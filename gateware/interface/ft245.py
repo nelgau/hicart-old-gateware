@@ -131,7 +131,6 @@ class FT245Interface(Elaboratable):
 
 class FT245InterfaceTest(ModuleTestCase):
     FRAGMENT_UNDER_TEST = FT245Interface
-    SYNC_CLOCK_FREQUENCY = 40e6
 
     def instantiate_dut(self):
         dut = FT245Interface()

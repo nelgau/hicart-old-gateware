@@ -90,7 +90,6 @@ class CIC(Elaboratable):
 
 class CICTest(ModuleTestCase):
     FRAGMENT_UNDER_TEST = CIC
-    SYNC_CLOCK_FREQUENCY = 40e6
 
     def traces_of_interest(self):
         return [
