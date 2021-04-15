@@ -39,13 +39,26 @@ class QSPIFlashInterface(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        m.d.comb += [
-            self.ready.eq(0)
+        m.d.sync += [
+            self._in_shift[4:]      .eq(self._in_shift[:28]),
+            self._out_shift[4:]     .eq(self._out_shift[:28]),
+            self._in_shift[0:4]     .eq(self.bus.d.i),
+            self._out_shift[0:4]    .eq(0),
+
+            self.valid              .eq(0),
         ]
 
-        m.d.sync += [
-            self.valid.eq(0)
+        m.d.comb += [
+            self.bus.d.o            .eq(self._out_shift[28:32]),
+            self.data               .eq(self._in_shift),
+
+            self.ready              .eq(0),
         ]
+
+        with m.If(self._counter > 0):
+            m.d.sync += [
+                self._counter       .eq(self._counter - 1)
+            ]
 
         current_address     = Signal(24)
         sequential_address  = Signal(24)
@@ -68,7 +81,6 @@ class QSPIFlashInterface(Elaboratable):
                         self._counter           .eq(7),
                         self._out_shift         .eq(0x11101011),
                         self.bus.d.oe           .eq(1),
-                        
                     ]
 
             with m.State("COMMAND"):
@@ -76,8 +88,8 @@ class QSPIFlashInterface(Elaboratable):
                     m.next = "ADDRESS"
                     m.d.sync += [
                         self._counter           .eq(7),
-                        self._out_shift[8:32]   .eq(0x654321),
-                        self._out_shift[0:8]    .eq(0xF0),                        
+                        self._out_shift[8:32]   .eq(current_address),
+                        self._out_shift[0:8]    .eq(0xF0),
                     ]
 
             with m.State("ADDRESS"):
@@ -85,7 +97,7 @@ class QSPIFlashInterface(Elaboratable):
                     m.next = "DUMMY"
                     m.d.sync += [
                         self._counter           .eq(3),
-                        self.bus.d.oe           .eq(0),                        
+                        self.bus.d.oe           .eq(0),
                     ]
 
             with m.State("DUMMY"):
@@ -103,25 +115,6 @@ class QSPIFlashInterface(Elaboratable):
                     m.d.sync += [                        
                         self.valid              .eq(1),
                     ]
-
-
-        with m.If(self._counter != 0):
-            m.d.sync += [
-                self._counter           .eq(self._counter - 1),                
-                self._out_shift[4:]     .eq(self._out_shift[:28]),                
-                self._out_shift[0:4]    .eq(0),
-            ]
-        
-        m.d.sync += [            
-            self._in_shift[4:]          .eq(self._in_shift[:28]),
-            self._in_shift[0:4]         .eq(self.bus.d.i),
-        ]
-
-        m.d.comb += [
-            self.bus.d.o                .eq(self._out_shift[28:32]),
-            self.data                   .eq(self._in_shift),
-
-        ]
 
         return m
 
@@ -150,7 +143,7 @@ class QSPIFlashInterfaceTest(ModuleTestCase):
 
     @sync_test_case
     def test_basic(self):
-        yield self.dut.address.eq(0x654321)
+        yield self.dut.address.eq(0x876543)
         yield
 
         yield self.dut.start.eq(1)
@@ -165,6 +158,3 @@ class QSPIFlashInterfaceTest(ModuleTestCase):
             yield
 
         yield from self.advance_cycles(5)
-
-
-
