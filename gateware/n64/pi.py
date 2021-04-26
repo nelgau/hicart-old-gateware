@@ -11,7 +11,7 @@ from lambdasoc.periph.sram  import SRAMPeripheral
 
 class PIInitiator(Elaboratable):
     def __init__(self):
-        self.bus = wishbone.Interface(addr_width=32, data_width=16)
+        self.bus = wishbone.Interface(addr_width=32, data_width=32)
         self.ad16 = AD16()
 
     def elaborate(self, platform):
@@ -21,7 +21,7 @@ class PIInitiator(Elaboratable):
         m.submodules.decoder   = decoder   = BurstDecoder()
         m.submodules.direct    = direct    = DirectBurst2Wishbone()
         m.submodules.buffered  = buffered  = BufferedBurst2Wishbone()
-        m.submodules.arbiter   = arbiter   = wishbone.Arbiter(addr_width=32, data_width=16)
+        m.submodules.arbiter   = arbiter   = wishbone.Arbiter(addr_width=32, data_width=32)
 
         arbiter.add(direct.wbbus)
         arbiter.add(buffered.wbbus)
@@ -44,19 +44,20 @@ class PIInitiatorTest(ModuleTestCase):
             self.ad16 = AD16()
 
             self.rom_data = [
-                0x4001,
-                0x4002,
-                0x4003,
-                0x4004,
+                0x76543210,
+                0xFEDCBA98,
+                0xCAFEBABE,
+                0xDEADBEEF,
             ]
 
         def elaborate(self, platform):
             m = Module()
 
-            self.decoder = wishbone.Decoder(addr_width=32, data_width=16)
+            self.decoder = wishbone.Decoder(addr_width=32, data_width=32, granularity=8)
 
-            self.rom = SRAMPeripheral(size=4, data_width=16, writable=False)
+            self.rom = SRAMPeripheral(size=16, data_width=32, writable=False)
             self.decoder.add(self.rom.bus, addr=0x10000000)
+            self.rom.init = self.rom_data
 
             self.initiator = PIInitiator()
 
@@ -104,12 +105,9 @@ class PIInitiatorTest(ModuleTestCase):
 
         #
 
-        yield self.dut.ad16.read   .eq(1)
-        yield from self.advance_cycles(6)
-        yield self.dut.ad16.read   .eq(0)
-        yield from self.advance_cycles(6)
+        for i in range(8):
 
-        yield self.dut.ad16.read   .eq(1)
-        yield from self.advance_cycles(6)
-        yield self.dut.ad16.read   .eq(0)
-        yield from self.advance_cycles(6)
+            yield self.dut.ad16.read   .eq(1)
+            yield from self.advance_cycles(6)
+            yield self.dut.ad16.read   .eq(0)
+            yield from self.advance_cycles(6)

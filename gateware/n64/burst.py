@@ -12,13 +12,15 @@ class BurstBus(Record):
             ('blk',         1,  DIR_FANOUT),
             ('base',        32, DIR_FANOUT),
             ('load',        1,  DIR_FANOUT),
+            ('blk_stall',   1,  DIR_FANIN),
             # Transfer
             ('off',         8,  DIR_FANOUT),
-            ('dat_w',       16, DIR_FANOUT),            
-            ('dat_r',       16, DIR_FANIN),
+            ('dat_w',       32, DIR_FANOUT),            
+            ('dat_r',       32, DIR_FANIN),
             ('cyc',         1,  DIR_FANOUT),
-            ('stb',         1,  DIR_FANOUT),
-            ('we',          1,  DIR_FANOUT),            
+            ('stb',         1,  DIR_FANOUT),            
+            ('we',          1,  DIR_FANOUT),
+            ('stall',       1,  DIR_FANIN),            
             ('ack',         1,  DIR_FANIN),
         ])
 
@@ -32,9 +34,8 @@ class _AddressGenerator(Elaboratable):
         m = Module()
 
         m.d.comb += [
-            self.addr[0]    .eq(0),
-            self.addr[1:8]  .eq((self.base[1:8] + self.offset)[0:7]),
-            self.addr[9:31] .eq(self.base[9:31])
+            self.addr[0:8]  .eq((self.base[0:8] + self.offset)[0:8]),
+            self.addr[8:32] .eq(self.base[8:32])
         ]
 
         return m
@@ -57,7 +58,7 @@ class DirectBurst2Wishbone(Elaboratable):
 
     def __init__(self):
         self.bbus = BurstBus()
-        self.wbbus = wishbone.Interface(addr_width=32, data_width=16)
+        self.wbbus = wishbone.Interface(addr_width=32, data_width=32)
 
     def elaborate(self, platform):
         m = Module()
@@ -85,7 +86,7 @@ class BufferedBurst2Wishbone(Elaboratable):
 
     def __init__(self):
         self.bbus = BurstBus()
-        self.wbbus = wishbone.Interface(addr_width=32, data_width=16)
+        self.wbbus = wishbone.Interface(addr_width=32, data_width=32)
 
     def elaborate(self, platform):
         m = Module()

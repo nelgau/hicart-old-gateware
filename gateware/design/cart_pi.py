@@ -3,15 +3,30 @@ import itertools
 
 from nmigen import *
 from nmigen.build import *
+from lambdasoc.periph.sram import SRAMPeripheral
 
-from lambdasoc.periph.sram  import SRAMPeripheral
-
+from debug.ila import HomeInvaderILA, HomeInvaderILAFrontend
 from n64.cic import CIC
-from n64.initiator import N64Initiator
+from n64.pi import PIInitiator
 from utils.cli import main_runner
 
 
 class Top(Elaboratable):
+
+    def __init__(self):
+        pass
+
+        # self.ila = HomeInvaderILA(
+        #     sample_depth=32,
+        #     signals=[
+        #         self.counter,
+        #         self.hello
+        #     ]
+        # )    
+
+    # def interactive_display(self):
+    #     frontend = HomeInvaderILAFrontend(ila=self.ila)
+    #     frontend.interactive_display()    
 
     def elaborate(self, platform):
         m = Module()
@@ -30,15 +45,15 @@ class Top(Elaboratable):
 
         m.submodules.car       = platform.clock_domain_generator()
         m.submodules.cic       = self.cic = cic = CIC()
-        m.submodules.initiator = self.initiator = initiator = N64Initiator();
+        m.submodules.initiator = self.initiator = initiator = PIInitiator();
 
         rom_size = 16384
 
         with open("../roms/nc99.n64", "rb") as f:
             rom_bytes = f.read()[0:16384]
-            rom_data = [x[0] for x in struct.iter_unpack('<H', rom_bytes)]
+            rom_data = [x[0] for x in struct.iter_unpack('<L', rom_bytes)]
 
-        m.submodules.sram = sram = SRAMPeripheral(size=rom_size, data_width=16, writable=False)
+        m.submodules.sram = sram = SRAMPeripheral(size=rom_size, data_width=32, writable=False)
 
         sram.init = rom_data
 
@@ -57,14 +72,14 @@ class Top(Elaboratable):
         m.d.comb += [
             initiator.bus.connect(sram.bus),
 
-            initiator.cart.ad.i     .eq( n64_cart.ad.i  ),
-            initiator.cart.ale_h    .eq( n64_cart.ale_h ),
-            initiator.cart.ale_l    .eq( n64_cart.ale_l ),
-            initiator.cart.read     .eq( n64_cart.read  ),
-            initiator.cart.write    .eq( n64_cart.write ),
+            initiator.ad16.ad.i     .eq( n64_cart.ad.i  ),
+            initiator.ad16.ale_h    .eq( n64_cart.ale_h ),
+            initiator.ad16.ale_l    .eq( n64_cart.ale_l ),
+            initiator.ad16.read     .eq( n64_cart.read  ),
+            initiator.ad16.write    .eq( n64_cart.write ),
 
-            n64_cart.ad.o           .eq( initiator.cart.ad.o  ),
-            n64_cart.ad.oe          .eq( initiator.cart.ad.oe ),
+            n64_cart.ad.o           .eq( initiator.ad16.ad.o  ),
+            n64_cart.ad.oe          .eq( initiator.ad16.ad.oe ),
 
             pmod.d.oe               .eq(1)
         ]

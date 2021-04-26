@@ -80,16 +80,17 @@ class QSPIFlashInterface(Elaboratable):
                     m.d.sync += [
                         self._counter           .eq(7),
                         self._out_shift         .eq(0x11101011),
-                        self.bus.d.oe           .eq(1),
+                        self.bus.d.oe           .eq(0x1),
                     ]
 
             with m.State("COMMAND"):
                 with m.If(self._counter == 0):
                     m.next = "ADDRESS"
-                    m.d.sync += [
+                    m.d.sync += [                 
                         self._counter           .eq(7),
                         self._out_shift[8:32]   .eq(current_address),
                         self._out_shift[0:8]    .eq(0xF0),
+                        self.bus.d.oe           .eq(0xF),
                     ]
 
             with m.State("ADDRESS"):
@@ -97,7 +98,7 @@ class QSPIFlashInterface(Elaboratable):
                     m.next = "DUMMY"
                     m.d.sync += [
                         self._counter           .eq(3),
-                        self.bus.d.oe           .eq(0),
+                        self.bus.d.oe           .eq(0x0),
                     ]
 
             with m.State("DUMMY"):
