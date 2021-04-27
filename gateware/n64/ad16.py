@@ -68,18 +68,20 @@ class AD16Interface(Elaboratable):
         index = Signal()
         valid = Signal()       
 
+
+
         with m.FSM() as fsm:                #   ALE_L       ALE_H
             with m.State("INIT"):           #   Inactive    Inactive
                 with m.If(ale_l_sync):
                     m.next = "A"
             
             with m.State("A"):              #   Active      Inactive
-                with m.If(~ale_l_sync):
-                    m.d.sync += base[14:30].eq(ad_i_sync)
+                with m.If(~ale_l_sync):                    
                     m.next = "B"
 
             with m.State("B"):              #   Inactive    Inactive
                 with m.If(ale_h_sync):
+                    m.d.sync += base[14:30].eq(ad_i_sync)
                     m.next = "C"
 
             with m.State("C"):              #   Inactive    Active
@@ -94,8 +96,6 @@ class AD16Interface(Elaboratable):
                     m.next = "A"
 
             m.d.comb += valid.eq(fsm.ongoing("VALID"))
-
-
 
 
 

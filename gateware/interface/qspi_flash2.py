@@ -1,6 +1,9 @@
 from nmigen import *
 from nmigen.hdl.rec import DIR_FANIN, DIR_FANOUT
+from nmigen.utils import log2_int
+
 from nmigen_soc import wishbone
+from nmigen_soc.memory import MemoryMap
 
 from test import *
 
@@ -107,7 +110,7 @@ class QSPIFlashInterface(Elaboratable):
                 with m.If(self._counter == 0):
                     m.next = "DUMMY"
                     m.d.sync += [
-                        self._counter           .eq(3),
+                        self._counter           .eq(3), 
                         self.bus.d.oe           .eq(0x0),
                     ]
 
@@ -158,7 +161,14 @@ class QSPIFlashWishboneInterface(Elaboratable):
 
     def __init__(self):
         self.bus = QSPIBus()
-        self.wb = wishbone.Interface(addr_width=24, data_width=32, features={"stall"})
+        self.wb = wishbone.Interface(addr_width=24, data_width=32, granularity=8, features={"stall"})
+
+        size = 2**26
+        granularity = 8
+
+        map = MemoryMap(addr_width=log2_int(size), data_width=granularity)
+        map.add_resource(self, size=size)
+        self.wb.memory_map = map
 
     def elaborate(self, platform):
         m = Module()

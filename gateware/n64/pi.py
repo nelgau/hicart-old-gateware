@@ -1,17 +1,16 @@
 from nmigen import *
-
 from nmigen_soc import wishbone
+from lambdasoc.periph.sram  import SRAMPeripheral
 
 from .ad16 import AD16, AD16Interface
 from .burst import BurstDecoder, DirectBurst2Wishbone, BufferedBurst2Wishbone
 
 from test import *
 
-from lambdasoc.periph.sram  import SRAMPeripheral
 
-class PIInitiator(Elaboratable):
+class PIWishboneInitiator(Elaboratable):
     def __init__(self):
-        self.bus = wishbone.Interface(addr_width=32, data_width=32)
+        self.bus = wishbone.Interface(addr_width=32, data_width=32, features={"stall"})
         self.ad16 = AD16()
 
     def elaborate(self, platform):
@@ -36,7 +35,7 @@ class PIInitiator(Elaboratable):
 
         return m
 
-class PIInitiatorTest(ModuleTestCase):
+class PIWishboneInitiatorTest(ModuleTestCase):
 
     class DUT(Elaboratable):
 
@@ -59,7 +58,7 @@ class PIInitiatorTest(ModuleTestCase):
             self.decoder.add(self.rom.bus, addr=0x10000000)
             self.rom.init = self.rom_data
 
-            self.initiator = PIInitiator()
+            self.initiator = PIWishboneInitiator()
 
             m.submodules.initiator = self.initiator
             m.submodules.decoder   = self.decoder

@@ -7,7 +7,7 @@ from lambdasoc.periph.sram import SRAMPeripheral
 
 from debug.ila import HomeInvaderILA, HomeInvaderILAFrontend
 from n64.cic import CIC
-from n64.pi import PIInitiator
+from n64.pi import PIWishboneInitiator
 from utils.cli import main_runner
 
 
@@ -45,7 +45,7 @@ class Top(Elaboratable):
 
         m.submodules.car       = platform.clock_domain_generator()
         m.submodules.cic       = self.cic = cic = CIC()
-        m.submodules.initiator = self.initiator = initiator = PIInitiator();
+        m.submodules.initiator = self.initiator = initiator = PIWishboneInitiator();
 
         rom_size = 16384
 

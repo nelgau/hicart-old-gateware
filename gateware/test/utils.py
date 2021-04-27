@@ -48,17 +48,7 @@ class ModuleTestCase(unittest.TestCase):
 
     def setUp(self):
         self.dut = self.instantiate_dut()
-        
-
-        # Elaborate and prepare the fragment now so that we can add the clock signals
-        # as traces of interest below.
-        # self.fragment = Fragment.get(self.dut, platform=None)
-        # self.sim = Simulator(self.fragment)
-
-
-
         self.sim = Simulator(self.dut)
-
         self.sim.add_clock(1.0 / self.CLOCK_FREQUENCY, domain='sync')
 
     def initialize_signals(self):
