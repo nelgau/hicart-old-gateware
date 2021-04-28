@@ -50,7 +50,8 @@ class BurstDecoder(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        m.d.comb += self.bus.connect(self.direct)
+        #m.d.comb += self.bus.connect(self.direct)
+        m.d.comb += self.bus.connect(self.buffered)
 
         return m
 
@@ -92,7 +93,11 @@ class BufferedBurst2Wishbone(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.agen = agen = _AddressGenerator()
+        storage = Memory(width=32, depth=127)
+
+        m.submodules.agen   = agen   = _AddressGenerator()
+        m.submodules.w_port = w_port = storage.write_port()
+        m.submodules.r_port = r_port = storage.read_port()
 
         base = Signal(32)
         offset = Signal(8)
@@ -130,22 +135,21 @@ class BufferedBurst2Wishbone(Elaboratable):
                     with m.Else():
                         m.next = "IDLE"
 
-
-                    # m.d.comb += [
-                    #     op_read_data            .eq(self.bus.dat_r),
-                    #     op_read_data_valid      .eq(1),
-                    # ]            
-
-
-
         m.d.comb += [
             agen.base           .eq(base),
             agen.offset         .eq(offset),
             self.wbbus.adr      .eq(agen.addr),
 
-            # self.bbus.ack       .eq(0),
+            w_port.addr         .eq(offset),
+            w_port.data         .eq(self.wbbus.dat_r),
+            w_port.en           .eq(self.wbbus.ack),
 
-            # self.bbus.dat_r     .eq(0),
+            r_port.addr         .eq(self.bbus.off),
+        ]
+
+        m.d.sync += [
+            self.bbus.ack       .eq(self.bbus.cyc & self.bbus.stb),
+            self.bbus.dat_r     .eq(r_port.data),
         ]
 
         return m
@@ -183,6 +187,8 @@ class BufferedBurst2WishboneTest(MultiProcessTestCase):
         def wbbus_process():
             yield Passive()
 
+            data = 0xCAFEBA00
+
             while True:
                 while (yield ~(dut.wbbus.cyc & dut.wbbus.stb)):
                     yield
@@ -192,10 +198,13 @@ class BufferedBurst2WishboneTest(MultiProcessTestCase):
 
                 yield
                 yield
+                yield dut.wbbus.dat_r       .eq(data)
                 yield dut.wbbus.ack         .eq(1)
                 yield
                 yield dut.wbbus.stall       .eq(0)
                 yield dut.wbbus.ack         .eq(0)
+
+                data += 1
 
         with self.simulate(dut, traces=dut.ports()) as sim:
             sim.add_clock(1.0 / 100e6, domain='sync')

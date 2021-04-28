@@ -4,7 +4,7 @@ from nmigen import *
 from nmigen.sim import *
 from nmigen_soc import wishbone
 
-from interface.qspi_flash2 import QSPIBus, QSPIFlashWishboneInterface
+from interface.qspi_flash import QSPIBus, QSPIFlashWishboneInterface
 from n64.ad16 import AD16
 from n64.pi import PIWishboneInitiator
 from test.driver.ad16 import PIInitiator
@@ -60,7 +60,6 @@ class DUT(Elaboratable):
         ]
 
 
-
 class N64ReadTest(MultiProcessTestCase):
 
     def test_read(self):
@@ -75,10 +74,10 @@ class N64ReadTest(MultiProcessTestCase):
         def pi_process():
             yield from pi.begin()
             yield from pi.read_burst_slow(0x10000000, 2)
-            yield from pi.read_burst_fast(0x100048C0, 8)
+            yield from pi.read_burst_fast(0x100048C0, 100)
 
         with self.simulate(dut, traces=dut.ports()) as sim:
-            sim.add_clock(1.0 / 200e6, domain='sync')
+            sim.add_clock(1.0 / 80e6, domain='sync')
             sim.add_sync_process(flash_process)
             sim.add_process(pi_process)
 
