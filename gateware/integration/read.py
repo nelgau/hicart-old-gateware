@@ -10,6 +10,8 @@ from n64.pi import PIWishboneInitiator
 from test.driver.ad16 import PIInitiator
 from test.emulator.qspi_flash import QSPIFlashEmulator
 
+from test.testcase import MultiProcessTestCase
+
 
 class DUT(Elaboratable):
 
@@ -58,40 +60,25 @@ class DUT(Elaboratable):
         ]
 
 
-class N64ReadTest(unittest.TestCase):
+
+class N64ReadTest(MultiProcessTestCase):
 
     def test_read(self):
         dut = DUT()
+        flash = QSPIFlashEmulator(dut.qspi)
+        pi = PIInitiator(dut.ad16)
 
-        sim = Simulator(dut)
-        pi_driver = PIInitiator(dut.ad16)
-        flash_emulator = QSPIFlashEmulator(dut.qspi)
-
-        def driver_process():
-            yield from pi_driver.begin()
-            yield from pi_driver.read_burst_slow(0x10000000, 2)
-            yield from pi_driver.read_burst_fast(0x100048C0, 8)
-
-        def emulator_process():
+        def flash_process():
             yield Passive()
-            yield from flash_emulator.emulate()
+            yield from flash.emulate()
 
-        sim.add_process(driver_process)
-        sim.add_sync_process(emulator_process)
-        sim.add_clock(1.0 / 200e6, domain='sync')
+        def pi_process():
+            yield from pi.begin()
+            yield from pi.read_burst_slow(0x10000000, 2)
+            yield from pi.read_burst_fast(0x100048C0, 8)
 
+        with self.simulate(dut, traces=dut.ports()) as sim:
+            sim.add_clock(200e6, domain='sync')
+            sim.add_sync_process(flash_process)
+            sim.add_process(pi_process)
 
-
-
-        traces = []
-        # Add clock signals to the traces by default
-        fragment = sim._fragment
-        for domain in fragment.iter_domains():
-            cd = fragment.domains[domain]
-            traces.extend((cd.clk, cd.rst))
-        # Add any user-supplied traces after the clock domains
-        traces += dut.ports()       
-
-
-        with sim.write_vcd("test.vcd", "test.gtkw", traces=traces):
-            sim.run()        
