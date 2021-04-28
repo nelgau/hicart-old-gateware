@@ -10,7 +10,7 @@ from n64.pi import PIWishboneInitiator
 from test.driver.ad16 import PIInitiator
 from test.emulator.qspi_flash import QSPIFlashEmulator
 
-from test.testcase import MultiProcessTestCase
+from test import MultiProcessTestCase
 
 
 class DUT(Elaboratable):
@@ -78,7 +78,7 @@ class N64ReadTest(MultiProcessTestCase):
             yield from pi.read_burst_fast(0x100048C0, 8)
 
         with self.simulate(dut, traces=dut.ports()) as sim:
-            sim.add_clock(200e6, domain='sync')
+            sim.add_clock(1.0 / 200e6, domain='sync')
             sim.add_sync_process(flash_process)
             sim.add_process(pi_process)
 

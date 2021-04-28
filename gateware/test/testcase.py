@@ -2,7 +2,7 @@ import os
 import unittest
 from contextlib import contextmanager
 
-from nmigen import Fragment, Signal
+from nmigen import Signal, Record
 from nmigen.sim import Simulator
 
 
@@ -17,8 +17,7 @@ class MultiProcessTestCase(unittest.TestCase):
         if os.getenv('GENERATE_VCDS', default=False):
             # Create an output directory
             os.makedirs("traces", exist_ok=True)
-
-            # Figure out the name of our VCD files...
+            # Figure out the name of our VCD files
             vcd_name = "traces/" + self.id()
             
             all_traces = []
@@ -27,8 +26,21 @@ class MultiProcessTestCase(unittest.TestCase):
             for domain in fragment.iter_domains():
                 cd = fragment.domains[domain]
                 all_traces.extend((cd.clk, cd.rst))
+
+            def iter_flat(record):
+                for field_name, field in record.fields.items():
+                    if isinstance(field, Record):
+                        yield from iter_flat(field)
+                    elif isinstance(field, Signal): 
+                        yield field
+
             # Add any user-supplied traces after the clock domains
-            all_traces += traces
+            for trace in traces:
+                if isinstance(trace, Record):
+                    for t in iter_flat(trace):
+                        all_traces.append(t)
+                else:
+                    all_traces.append(trace)
 
             # ... and run the simulation while writing them.
             with sim.write_vcd(vcd_name + ".vcd", vcd_name + ".gtkw", traces=all_traces):
