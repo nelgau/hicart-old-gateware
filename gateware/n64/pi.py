@@ -20,7 +20,7 @@ class PIWishboneInitiator(Elaboratable):
         m.submodules.decoder   = decoder   = BurstDecoder()
         m.submodules.direct    = direct    = DirectBurst2Wishbone()
         m.submodules.buffered  = buffered  = BufferedBurst2Wishbone()
-        m.submodules.arbiter   = arbiter   = wishbone.Arbiter(addr_width=32, data_width=32)
+        m.submodules.arbiter   = arbiter   = wishbone.Arbiter(addr_width=32, data_width=32, features={"stall"})
 
         arbiter.add(direct.wbbus)
         arbiter.add(buffered.wbbus)

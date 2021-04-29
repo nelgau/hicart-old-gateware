@@ -135,7 +135,7 @@ class AD16Interface(Elaboratable):
                 ]
 
         m.d.sync += [
-            self.ad16.ad.o      .eq(Mux(index, read_data[16:32], read_data[0:16])),
+            self.ad16.ad.o      .eq(Mux(index, read_data[0:16], read_data[16:32])),
             self.ad16.ad.oe     .eq(read_sync & read_data_valid),
         ]
 

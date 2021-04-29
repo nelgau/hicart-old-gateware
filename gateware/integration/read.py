@@ -64,7 +64,16 @@ class N64ReadTest(MultiProcessTestCase):
 
     def test_read(self):
         dut = DUT()
-        flash = QSPIFlashEmulator(dut.qspi)
+
+        data = [
+            0xCAFE,
+            0xBABE,
+            0xDEAD,
+            0xBEEF
+        ]
+
+        rom_data = self._rom_bytes(data, 2, 'big')
+        flash = QSPIFlashEmulator(dut.qspi, rom_data)
         pi = PIInitiator(dut.ad16)
 
         def flash_process():
@@ -74,10 +83,13 @@ class N64ReadTest(MultiProcessTestCase):
         def pi_process():
             yield from pi.begin()
             yield from pi.read_burst_slow(0x10000000, 2)
-            yield from pi.read_burst_fast(0x100048C0, 100)
+            yield from pi.read_burst_fast(0x10000000, 32)
 
         with self.simulate(dut, traces=dut.ports()) as sim:
             sim.add_clock(1.0 / 80e6, domain='sync')
             sim.add_sync_process(flash_process)
             sim.add_process(pi_process)
 
+    @staticmethod
+    def _rom_bytes(data, data_width, byteorder):
+        return [b for w in data for b in w.to_bytes(data_width, byteorder=byteorder)]

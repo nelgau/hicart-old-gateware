@@ -60,7 +60,7 @@ class DirectBurst2Wishbone(Elaboratable):
 
     def __init__(self):
         self.bbus = BurstBus()
-        self.wbbus = wishbone.Interface(addr_width=32, data_width=32)
+        self.wbbus = wishbone.Interface(addr_width=32, data_width=32, features={"stall"})
 
     def elaborate(self, platform):
         m = Module()
@@ -74,6 +74,7 @@ class DirectBurst2Wishbone(Elaboratable):
             self.wbbus.cyc      .eq(self.bbus.cyc),
             self.wbbus.stb      .eq(self.bbus.stb),
             self.wbbus.we       .eq(self.bbus.we),
+            self.bbus.stall     .eq(self.wbbus.stall),
             self.bbus.ack       .eq(self.wbbus.ack),
 
             self.wbbus.adr      .eq(agen.addr),
@@ -97,7 +98,7 @@ class BufferedBurst2Wishbone(Elaboratable):
 
         m.submodules.agen   = agen   = _AddressGenerator()
         m.submodules.w_port = w_port = storage.write_port()
-        m.submodules.r_port = r_port = storage.read_port()
+        m.submodules.r_port = r_port = storage.read_port(domain='comb')
 
         base = Signal(32)
         offset = Signal(8)
@@ -148,6 +149,7 @@ class BufferedBurst2Wishbone(Elaboratable):
         ]
 
         m.d.sync += [
+            self.bbus.stall     .eq(0),
             self.bbus.ack       .eq(self.bbus.cyc & self.bbus.stb),
             self.bbus.dat_r     .eq(r_port.data),
         ]

@@ -4,12 +4,11 @@ from nmigen.sim import *
 
 class QSPIFlashEmulator:
 
-    def __init__(self, qspi):
+    def __init__(self, qspi, data):
         self.qspi = qspi
+        self.data = data
 
-    def emulate(self):
-        rom = [0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF]
-
+    def emulate(self):    
         while True:
             yield self.qspi.d.i.eq(0)
 
@@ -36,11 +35,17 @@ class QSPIFlashEmulator:
                 continue
 
             while True:
-                data = rom[address % 8]
+                data = self._load_data(address)
                 bursting = yield from self._write_qspi(2, data)
                 if not bursting:
                     break
                 address += 1
+
+    def _load_data(self, address):
+        if address < len(self.data):
+            return self.data[address]
+        else:
+            return 0xFF
 
     def _wait_for_cs(self):
         while (yield self.qspi.cs_n):
