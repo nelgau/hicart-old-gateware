@@ -4,7 +4,6 @@ import itertools
 from nmigen import *
 from nmigen.build import *
 from nmigen_soc import wishbone
-from lambdasoc.periph.sram import SRAMPeripheral
 
 from n64.cic import CIC
 from n64.pi import PIWishboneInitiator

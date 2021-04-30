@@ -1,10 +1,8 @@
-import serial
-
 from nmigen import *
 import pyftdi.serialext
 
 from interface.ft245 import FT245Interface
-from stream import ByteDownConverter
+from soc.stream import ByteDownConverter
 from utils.cli import main_runner
 
 

@@ -3,6 +3,7 @@ from nmigen.hdl.rec import DIR_FANIN, DIR_FANOUT
 
 from test import *
 
+
 class BasicStream(Record):
 
     def __init__(self, width):

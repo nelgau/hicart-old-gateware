@@ -4,7 +4,7 @@ import unittest
 
 from functools import wraps
 
-from nmigen import Fragment, Signal
+from nmigen import Signal
 from nmigen.sim import Simulator
 
 def sync_test_case(process_function):

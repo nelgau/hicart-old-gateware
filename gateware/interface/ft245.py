@@ -3,7 +3,7 @@ from nmigen.hdl.rec import DIR_FANIN, DIR_FANOUT
 from nmigen.lib.cdc import FFSynchronizer
 from nmigen.lib.fifo import SyncFIFO
 
-from stream import BasicStream
+from soc.stream import BasicStream
 
 from test import *
 

@@ -1,7 +1,7 @@
 from nmigen import *
 
-from nmigen_soc import wishbone
 from lambdasoc.periph.base import Peripheral
+
 
 class GPIOPeripheral(Peripheral, Elaboratable):
     def __init__(self, data_width=8):

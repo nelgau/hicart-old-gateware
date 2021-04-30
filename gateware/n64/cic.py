@@ -8,7 +8,7 @@ from nmigen_soc import wishbone
 from lambdasoc.cpu.minerva  import MinervaCPU
 from lambdasoc.periph.sram  import SRAMPeripheral
 
-from periph.gpio import GPIOPeripheral
+from soc.gpio import GPIOPeripheral
 from test import *
 
 class CIC(Elaboratable):
