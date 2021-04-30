@@ -3,30 +3,16 @@ import itertools
 
 from nmigen import *
 from nmigen.build import *
+from nmigen_soc import wishbone
 from lambdasoc.periph.sram import SRAMPeripheral
 
-from debug.ila import HomeInvaderILA, HomeInvaderILAFrontend
 from n64.cic import CIC
 from n64.pi import PIWishboneInitiator
+from interface.qspi_flash import QSPIFlashWishboneInterface
 from utils.cli import main_runner
 
 
 class Top(Elaboratable):
-
-    def __init__(self):
-        pass
-
-        # self.ila = HomeInvaderILA(
-        #     sample_depth=32,
-        #     signals=[
-        #         self.counter,
-        #         self.hello
-        #     ]
-        # )    
-
-    # def interactive_display(self):
-    #     frontend = HomeInvaderILAFrontend(ila=self.ila)
-    #     frontend.interactive_display()    
 
     def elaborate(self, platform):
         m = Module()
@@ -43,19 +29,31 @@ class Top(Elaboratable):
         leds = get_all_resources('led')
         leds = Cat([l.o for l in leds])
 
-        m.submodules.car       = platform.clock_domain_generator()
-        m.submodules.cic       = self.cic = cic = CIC()
-        m.submodules.initiator = self.initiator = initiator = PIWishboneInitiator();
+        m.submodules.car             = platform.clock_domain_generator()
+        m.submodules.flash_connector = platform.flash_connector()
 
-        rom_size = 16384
+        m.submodules.cic        = self.cic = cic  = DomainRenamer("cic")(CIC())
+        m.submodules.initiator  = self.initiator  = initiator  = PIWishboneInitiator();
+        m.submodules.qspi_flash = self.qspi_flash = qspi_flash = QSPIFlashWishboneInterface()
 
-        with open("../roms/nc99.n64", "rb") as f:
-            rom_bytes = f.read()[0:16384]
-            rom_data = [x[0] for x in struct.iter_unpack('<L', rom_bytes)]
+        # rom_size = 16384
 
-        m.submodules.sram = sram = SRAMPeripheral(size=rom_size, data_width=32, writable=False)
+        # with open("../roms/sm64.z64", "rb") as f:
+        #     rom_bytes = f.read()[0:16384]
+        #     rom_data = [x[0] for x in struct.iter_unpack('>L', rom_bytes)]
 
-        sram.init = rom_data
+        # m.submodules.sram = self.sram = sram = SRAMPeripheral(size=rom_size, data_width=32, writable=False)
+
+        # sram.init = rom_data
+
+
+        decoder = wishbone.Decoder(addr_width=32, data_width=32, granularity=8, features={"stall"})
+        # decoder.add(sram.bus, addr=0x10000000)
+
+        decoder.add(qspi_flash.wb, addr=0x10000000)
+
+        m.submodules.decoder = decoder
+
 
         n64_cart = self.n64_cart = platform.request('n64_cart')
         pmod     = self.pmod     = platform.request('pmod')
@@ -70,7 +68,7 @@ class Top(Elaboratable):
         ]
 
         m.d.comb += [
-            initiator.bus.connect(sram.bus),
+            initiator.bus           .connect(decoder.bus),
 
             initiator.ad16.ad.i     .eq( n64_cart.ad.i  ),
             initiator.ad16.ale_h    .eq( n64_cart.ale_h ),
@@ -84,7 +82,7 @@ class Top(Elaboratable):
             pmod.d.oe               .eq(1)
         ]
 
-        self.probe_cic(m)
+        self.probe_qspi_flash(m)
 
 
 
@@ -115,7 +113,37 @@ class Top(Elaboratable):
     def probe_initiator_addr(self, m):
         initiator = self.initiator
         pmod = self.pmod
-        m.d.comb += pmod.d.o.eq(initiator.addr[1:9])
+        m.d.comb += pmod.d.o.eq(initiator.bus.adr[0:8])
+
+    def probe_initiator_bus(self, m):
+        initiator = self.initiator
+        qspi_flash = self.qspi_flash
+        pmod = self.pmod
+        m.d.comb += [
+            pmod.d.o[0].eq(initiator.bus.cyc),
+            pmod.d.o[1].eq(initiator.bus.stb),
+            pmod.d.o[2].eq(initiator.bus.stall),
+            pmod.d.o[3].eq(initiator.bus.ack),
+
+            pmod.d.o[4].eq(qspi_flash.wb.cyc),
+            pmod.d.o[5].eq(qspi_flash.wb.stb),
+            pmod.d.o[6].eq(qspi_flash.wb.stall), 
+            pmod.d.o[7].eq(qspi_flash.wb.ack), 
+        ]
+
+    def probe_qspi_flash(self, m):
+        qspi_flash = self.qspi_flash
+        pmod = self.pmod
+        m.d.comb += [
+            pmod.d.o[0].eq(ClockSignal('sync')),
+            pmod.d.o[1].eq(qspi_flash.bus.sck),
+            pmod.d.o[2].eq(qspi_flash.bus.cs_n),
+            pmod.d.o[3].eq(qspi_flash.bus.d.o[0]),
+            pmod.d.o[4].eq(qspi_flash.bus.d.o[1]),
+            pmod.d.o[5].eq(qspi_flash.bus.d.o[2]),
+            pmod.d.o[6].eq(qspi_flash.bus.d.o[3]),
+            pmod.d.o[7].eq(qspi_flash.bus.d.oe[0]),
+        ]
 
     def probe_bus_states(self, m):
         n64_cart = self.n64_cart

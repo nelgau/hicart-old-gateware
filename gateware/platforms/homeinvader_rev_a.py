@@ -6,13 +6,12 @@ from nmigen.build import *
 from nmigen.vendor.lattice_ecp5 import *
 from nmigen_boards.resources import *
 
+from interface.qspi_flash import QSPIBus
+
 __all__ = ["HomeInvaderRevAPlatform"]
 
 class HomeInvaderRevADomainGenerator(Elaboratable):
     """ Clock generator for Rev A boards. """
-
-    def __init__(self, *, clock_frequencies=None, clock_signal_name=None):
-        pass
 
     def elaborate(self, platform):
         m = Module()
@@ -23,8 +22,10 @@ class HomeInvaderRevADomainGenerator(Elaboratable):
         # Create our domains; but don't do anything else for them, for now.
         m.domains.sync = ClockDomain()
         m.domains.cic  = ClockDomain()
+        m.domains.slow = ClockDomain()
 
         locked = Signal()
+        clk80  = Signal()
         clk40  = Signal()
         clk20  = Signal()
 
@@ -33,8 +34,9 @@ class HomeInvaderRevADomainGenerator(Elaboratable):
                 i_CLKI=input_clock,
 
                 # Generated clock outputs.
-                o_CLKOP=clk40,
-                o_CLKOS=clk20,
+                o_CLKOP=clk80,
+                o_CLKOS=clk40,
+                o_CLKOS2=clk20,
 
                 # Status
                 o_LOCK=locked,
@@ -50,18 +52,22 @@ class HomeInvaderRevADomainGenerator(Elaboratable):
                 p_OUTDIVIDER_MUXD="DIVD",
                 p_CLKI_DIV = 3,
                 p_CLKOP_ENABLE = "ENABLED",
-                p_CLKOP_DIV = 15,
-                p_CLKOP_CPHASE = 7,
+                p_CLKOP_DIV = 7,
+                p_CLKOP_CPHASE = 3,
                 p_CLKOP_FPHASE = 0,
                 p_CLKOS_ENABLE = "ENABLED",
-                p_CLKOS_DIV = 30,
-                p_CLKOS_CPHASE = 7,
+                p_CLKOS_DIV = 14,
+                p_CLKOS_CPHASE = 3,
                 p_CLKOS_FPHASE = 0,
+                p_CLKOS2_ENABLE = "ENABLED",
+                p_CLKOS2_DIV = 28,
+                p_CLKOS2_CPHASE = 3,
+                p_CLKOS2_FPHASE = 0,                
                 p_FEEDBK_PATH = "CLKOP",
-                p_CLKFB_DIV = 10,
+                p_CLKFB_DIV = 20,
 
                 # Internal feedback
-                i_CLKFB=clk40,
+                i_CLKFB=clk80,
 
                 # Control signals
                 i_RST=0,
@@ -74,13 +80,13 @@ class HomeInvaderRevADomainGenerator(Elaboratable):
                 i_PLLWAKESYNC=0,
 
                 # Output Enables.
-                i_ENCLKOP=0,
-                i_ENCLKOS=0,
+                i_ENCLKOP=0,                
 
                 # Synthesis attributes.
                 a_FREQUENCY_PIN_CLKI="12",
-                a_FREQUENCY_PIN_CLKOP="40",
-                a_FREQUENCY_PIN_CLKOS="20",
+                a_FREQUENCY_PIN_CLKOP="80",
+                a_FREQUENCY_PIN_CLKOS="40",
+                a_FREQUENCY_PIN_CLKOS2="20",
                 a_ICP_CURRENT="12",
                 a_LPF_RESISTOR="8",
                 a_MFG_ENABLE_FILTEROPAMP="1",
@@ -88,11 +94,41 @@ class HomeInvaderRevADomainGenerator(Elaboratable):
         )
 
         m.d.comb += [
-            ClockSignal("sync")    .eq(clk40),
-            ClockSignal("cic")     .eq(clk20),
+            ClockSignal("sync")    .eq(clk80),
+            ClockSignal("cic")     .eq(clk40),
+            ClockSignal("slow")    .eq(clk20),
 
             ResetSignal("sync")    .eq(~locked),
-            ResetSignal("cic")     .eq(~locked)
+            ResetSignal("cic")     .eq(~locked),
+            ResetSignal("slow")    .eq(~locked),
+        ]
+
+        return m
+
+class HomeInvaderRevAFlashConnector(Elaboratable):
+
+    def __init__(self):
+        self.qspi = QSPIBus()
+
+    def elaborate(self, platform):
+        m = Module()
+
+        qspi_pins = platform.request("qspi_flash")
+
+        sync_clk = ClockSignal()
+        spi_clk = Signal()
+
+        m.submodules += Instance("USRMCLK",
+                i_USRMCLKI=spi_clk,
+                i_USRMCLKTS=Signal()
+            )
+
+        m.d.comb += [
+            spi_clk             .eq( ~(self.qspi.sck & sync_clk ) ),
+        ]
+
+        m.d.comb += [
+            qspi_pins.cs_n      .eq(self.qspi.cs_n),
         ]
 
         return m
@@ -104,6 +140,7 @@ class HomeInvaderRevAPlatform(LatticeECP5Platform):
     default_clk = "clk12"
 
     clock_domain_generator = HomeInvaderRevADomainGenerator
+    flash_connector = HomeInvaderRevAFlashConnector
     
     resources = [
         Resource("clk12", 0, Pins("J16", dir="i"), 
@@ -141,6 +178,15 @@ class HomeInvaderRevAPlatform(LatticeECP5Platform):
             # Only used in synchronous mode.
             Subsignal("clkout",   Pins("L16", dir="i")),
             Subsignal("oe",       Pins("T13", dir="o"))
+        ),
+
+        Resource("qspi_flash", 0,
+            # Subsignal("sck",       Pins("R14", dir="o")),
+            Subsignal("cs_n",       Pins("N8", dir="o"), Attrs(PULLMODE="UP")),
+            Subsignal("dq0",        Pins("T8", dir="io")),
+            Subsignal("dq1",        Pins("T7", dir="io")),
+            Subsignal("dq2",        Pins("M7", dir="io")),
+            Subsignal("dq3",        Pins("N7", dir="io")),
         ),
 
         Resource("pmod", 0,

@@ -65,15 +65,10 @@ class N64ReadTest(MultiProcessTestCase):
     def test_read(self):
         dut = DUT()
 
-        data = [
-            0xCAFE,
-            0xBABE,
-            0xDEAD,
-            0xBEEF
-        ]
+        with open("../roms/sm64.z64", "rb") as f:
+            rom_bytes = list(f.read())
 
-        rom_data = self._rom_bytes(data, 2, 'big')
-        flash = QSPIFlashEmulator(dut.qspi, rom_data)
+        flash = QSPIFlashEmulator(dut.qspi, rom_bytes)
         pi = PIInitiator(dut.ad16)
 
         def flash_process():
