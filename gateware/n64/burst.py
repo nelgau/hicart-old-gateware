@@ -50,8 +50,8 @@ class BurstDecoder(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        m.d.comb += self.bus.connect(self.direct)
-        # m.d.comb += self.bus.connect(self.buffered)
+        # m.d.comb += self.bus.connect(self.direct)
+        m.d.comb += self.bus.connect(self.buffered)
 
         return m
 

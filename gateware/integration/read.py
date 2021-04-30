@@ -22,21 +22,20 @@ class DUT(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        self.initiator = PIWishboneInitiator()
-        self.qspi_flash = QSPIFlashWishboneInterface()
+        initiator = PIWishboneInitiator()
+        flash_interface = QSPIFlashWishboneInterface()
         
-        self.decoder = wishbone.Decoder(addr_width=32, data_width=32, granularity=8, features={"stall"})
-        self.decoder.add(self.qspi_flash.wb, addr=0x10000000)
+        decoder = wishbone.Decoder(addr_width=32, data_width=32, granularity=8, features={"stall"})
+        decoder.add(flash_interface.bus, addr=0x10000000)
 
-        m.submodules.initiator  = self.initiator
-        m.submodules.qspi_flash = self.qspi_flash
-        m.submodules.decoder    = self.decoder
+        m.submodules.initiator       = initiator
+        m.submodules.flash_interface = flash_interface
+        m.submodules.decoder         = decoder
 
         m.d.comb += [
-            self.initiator.ad16     .connect( self.ad16 ),
-            self.initiator.bus      .connect( self.decoder.bus ),
-
-            self.qspi_flash.bus     .connect( self.qspi ),
+            initiator.ad16         .connect( self.ad16 ),
+            initiator.bus          .connect( decoder.bus ),
+            flash_interface.qspi   .connect( self.qspi ),
         ]
 
         return m

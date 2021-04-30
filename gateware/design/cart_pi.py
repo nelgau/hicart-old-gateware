@@ -28,12 +28,12 @@ class Top(Elaboratable):
         leds = get_all_resources('led')
         leds = Cat([l.o for l in leds])
 
-        m.submodules.car             = platform.clock_domain_generator()
-        m.submodules.flash_connector = platform.flash_connector()
+        m.submodules.car                               = platform.clock_domain_generator()
+        m.submodules.flash_connector = flash_connector = platform.flash_connector()
 
-        m.submodules.cic        = self.cic = cic  = DomainRenamer("cic")(CIC())
-        m.submodules.initiator  = self.initiator  = initiator  = PIWishboneInitiator();
-        m.submodules.qspi_flash = self.qspi_flash = qspi_flash = QSPIFlashWishboneInterface()
+        m.submodules.cic        = self.cic = cic       = DomainRenamer("cic")(CIC())
+        m.submodules.initiator  = self.initiator       = initiator       = PIWishboneInitiator();
+        m.submodules.qspi_flash = self.flash_interface = flash_interface = QSPIFlashWishboneInterface()
 
         # rom_size = 16384
 
@@ -49,7 +49,7 @@ class Top(Elaboratable):
         decoder = wishbone.Decoder(addr_width=32, data_width=32, granularity=8, features={"stall"})
         # decoder.add(sram.bus, addr=0x10000000)
 
-        decoder.add(qspi_flash.wb, addr=0x10000000)
+        decoder.add(flash_interface.bus, addr=0x10000000)
 
         m.submodules.decoder = decoder
 
@@ -69,6 +69,8 @@ class Top(Elaboratable):
         m.d.comb += [
             initiator.bus           .connect(decoder.bus),
 
+            flash_interface.qspi         .connect(flash_connector.qspi),            
+
             initiator.ad16.ad.i     .eq( n64_cart.ad.i  ),
             initiator.ad16.ale_h    .eq( n64_cart.ale_h ),
             initiator.ad16.ale_l    .eq( n64_cart.ale_l ),
@@ -83,30 +85,6 @@ class Top(Elaboratable):
 
         self.probe_qspi_flash(m)
 
-
-
-        # sync_clk = ClockSignal()
-        # spi_clk = Signal()
-        # spi_en = Signal()
-
-        # m.submodules += Instance("USRMCLK",
-        #         i_USRMCLKI=spi_clk,
-        #         i_USRMCLKTS=Signal()
-        #     )
-
-        # m.d.sync += [
-        #     spi_en      .eq( ~spi_en )
-        # ]
-
-        # m.d.comb += [
-        #     spi_clk     .eq( ~(spi_en & sync_clk ) ),
-        #     # spi_clk     .eq( sync_clk ),
-
-        #     pmod.d.o[0] .eq( spi_en ),
-        #     pmod.d.o[1] .eq( sync_clk ),
-
-        # ]
-
         return m
 
     def probe_initiator_addr(self, m):
@@ -116,7 +94,7 @@ class Top(Elaboratable):
 
     def probe_initiator_bus(self, m):
         initiator = self.initiator
-        qspi_flash = self.qspi_flash
+        flash_interface = self.flash_interface
         pmod = self.pmod
         m.d.comb += [
             pmod.d.o[0].eq(initiator.bus.cyc),
@@ -124,24 +102,24 @@ class Top(Elaboratable):
             pmod.d.o[2].eq(initiator.bus.stall),
             pmod.d.o[3].eq(initiator.bus.ack),
 
-            pmod.d.o[4].eq(qspi_flash.wb.cyc),
-            pmod.d.o[5].eq(qspi_flash.wb.stb),
-            pmod.d.o[6].eq(qspi_flash.wb.stall), 
-            pmod.d.o[7].eq(qspi_flash.wb.ack), 
+            pmod.d.o[4].eq(flash_interface.bus.cyc),
+            pmod.d.o[5].eq(flash_interface.bus.stb),
+            pmod.d.o[6].eq(flash_interface.bus.stall), 
+            pmod.d.o[7].eq(flash_interface.bus.ack), 
         ]
 
     def probe_qspi_flash(self, m):
-        qspi_flash = self.qspi_flash
+        flash_interface = self.flash_interface
         pmod = self.pmod
         m.d.comb += [
             pmod.d.o[0].eq(ClockSignal('sync')),
-            pmod.d.o[1].eq(qspi_flash.bus.sck),
-            pmod.d.o[2].eq(qspi_flash.bus.cs_n),
-            pmod.d.o[3].eq(qspi_flash.bus.d.o[0]),
-            pmod.d.o[4].eq(qspi_flash.bus.d.o[1]),
-            pmod.d.o[5].eq(qspi_flash.bus.d.o[2]),
-            pmod.d.o[6].eq(qspi_flash.bus.d.o[3]),
-            pmod.d.o[7].eq(qspi_flash.bus.d.oe[0]),
+            pmod.d.o[1].eq(flash_interface.qspi.sck),
+            pmod.d.o[2].eq(flash_interface.qspi.cs_n),
+            pmod.d.o[3].eq(flash_interface.qspi.d.o[0]),
+            pmod.d.o[4].eq(flash_interface.qspi.d.o[1]),
+            pmod.d.o[5].eq(flash_interface.qspi.d.o[2]),
+            pmod.d.o[6].eq(flash_interface.qspi.d.o[3]),
+            pmod.d.o[7].eq(flash_interface.qspi.d.oe[0]),
         ]
 
     def probe_bus_states(self, m):

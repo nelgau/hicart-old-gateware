@@ -24,7 +24,7 @@ class QSPIBus(Record):
 class QSPIFlashInterface(Elaboratable):
 
     def __init__(self):
-        self.bus = QSPIBus()
+        self.qspi = QSPIBus()
 
         self.start      = Signal()
         self.address    = Signal(24)
@@ -45,17 +45,17 @@ class QSPIFlashInterface(Elaboratable):
         m.d.sync += [
             self._in_shift[4:]      .eq(self._in_shift[:28]),
             self._out_shift[4:]     .eq(self._out_shift[:28]),
-            self._in_shift[0:4]     .eq(self.bus.d.i),
+            self._in_shift[0:4]     .eq(self.qspi.d.i),
             self._out_shift[0:4]    .eq(0),
 
             self.valid              .eq(0),
         ]
 
         m.d.comb += [
-            self.bus.d.o            .eq(self._out_shift[28:32]),
+            self.qspi.d.o           .eq(self._out_shift[28:32]),
             self.data               .eq(self._in_shift),
 
-            self.bus.cs_n           .eq(~cs),
+            self.qspi.cs_n          .eq(~cs),
             self.idle               .eq(0),
         ]
 
@@ -90,10 +90,10 @@ class QSPIFlashInterface(Elaboratable):
                 m.d.sync += [
                     self._counter               .eq(7),
                     self._out_shift             .eq(0x11101011),
-                    self.bus.d.oe               .eq(0x1),
+                    self.qspi.d.oe              .eq(0x1),
 
                     cs                          .eq(1),
-                    self.bus.sck                .eq(1),
+                    self.qspi.sck               .eq(1),
                 ]
 
             with m.State("COMMAND"):
@@ -103,7 +103,7 @@ class QSPIFlashInterface(Elaboratable):
                         self._counter           .eq(7),
                         self._out_shift[8:32]   .eq(current_address),
                         self._out_shift[0:8]    .eq(0xF0),
-                        self.bus.d.oe           .eq(0xF),
+                        self.qspi.d.oe          .eq(0xF),
                     ]
 
             with m.State("ADDRESS"):
@@ -111,7 +111,7 @@ class QSPIFlashInterface(Elaboratable):
                     m.next = "DUMMY"
                     m.d.sync += [
                         self._counter           .eq(3), 
-                        self.bus.d.oe           .eq(0x0),
+                        self.qspi.d.oe          .eq(0x0),
                     ]
 
             with m.State("DUMMY"):
@@ -126,7 +126,7 @@ class QSPIFlashInterface(Elaboratable):
                     m.next = "WAITING"
                     m.d.sync += [                        
                         self.valid              .eq(1),
-                        self.bus.sck            .eq(0),
+                        self.qspi.sck           .eq(0),
                     ]
 
             with m.State("WAITING"):
@@ -141,7 +141,7 @@ class QSPIFlashInterface(Elaboratable):
                         m.next = "DATA"
                         m.d.sync += [
                             self._counter       .eq(7),
-                            self.bus.sck        .eq(1),
+                            self.qspi.sck       .eq(1),
                         ]
                     with m.Else():
                         m.next = "RECOVERY"
@@ -160,15 +160,14 @@ class QSPIFlashInterface(Elaboratable):
 class QSPIFlashWishboneInterface(Elaboratable):
 
     def __init__(self):
-        self.bus = QSPIBus()
-        self.wb = wishbone.Interface(addr_width=24, data_width=32, granularity=8, features={"stall"})
+        self.qspi = QSPIBus()
+        self.bus = wishbone.Interface(addr_width=24, data_width=32, granularity=8, features={"stall"})
 
         size = 2**26
         granularity = 8
 
-        map = MemoryMap(addr_width=log2_int(size), data_width=granularity)
-        map.add_resource(self, size=size)
-        self.wb.memory_map = map
+        self.bus.memory_map = MemoryMap(addr_width=log2_int(size), data_width=granularity)
+        self.bus.memory_map.add_resource(self, size=size)        
 
     def elaborate(self, platform):
         m = Module()
@@ -176,14 +175,14 @@ class QSPIFlashWishboneInterface(Elaboratable):
         m.submodules.interface = interface = QSPIFlashInterface()
 
         m.d.comb += [
-            interface.bus           .connect(self.bus),
+            interface.qspi          .connect(self.qspi),
 
-            interface.start         .eq(self.wb.cyc & self.wb.stb),
-            interface.address       .eq(self.wb.adr),
+            interface.start         .eq(self.bus.cyc & self.bus.stb),
+            interface.address       .eq(self.bus.adr),
 
-            self.wb.stall           .eq(~interface.idle),
-            self.wb.dat_r           .eq(interface.data),
-            self.wb.ack             .eq(interface.valid),
+            self.bus.stall          .eq(~interface.idle),
+            self.bus.dat_r          .eq(interface.data),
+            self.bus.ack            .eq(interface.valid),
         ]
 
         return m
@@ -194,11 +193,11 @@ class QSPIFlashInterfaceTest(ModuleTestCase):
 
     def traces_of_interest(self):
         return [
-            self.dut.bus.sck,
-            self.dut.bus.cs_n,
-            self.dut.bus.d.i,
-            self.dut.bus.d.o,
-            self.dut.bus.d.oe,
+            self.dut.qspi.sck,
+            self.dut.qspi.cs_n,
+            self.dut.qspi.d.i,
+            self.dut.qspi.d.o,
+            self.dut.qspi.d.oe,
 
             self.dut.start,
             self.dut.address,
@@ -226,10 +225,10 @@ class QSPIFlashInterfaceTest(ModuleTestCase):
         yield from self.advance_cycles(20)
 
         for x in [0xF, 0xE, 0xD, 0xC, 0xB, 0xA, 0x9, 0x8]:
-            yield self.dut.bus.d.i.eq(x)
+            yield self.dut.qspi.d.i.eq(x)
             yield
 
-        yield self.dut.bus.d.i.eq(0)
+        yield self.dut.qspi.d.i.eq(0)
         yield
 
         yield from self.advance_cycles(5)
@@ -242,10 +241,10 @@ class QSPIFlashInterfaceTest(ModuleTestCase):
         yield self.dut.start.eq(0)        
 
         for x in [0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0]:
-            yield self.dut.bus.d.i.eq(x)
+            yield self.dut.qspi.d.i.eq(x)
             yield
 
-        yield self.dut.bus.d.i.eq(0)
+        yield self.dut.qspi.d.i.eq(0)
         yield
 
         yield from self.advance_cycles(5)
@@ -261,10 +260,10 @@ class QSPIFlashInterfaceTest(ModuleTestCase):
         yield from self.advance_cycles(28)
 
         for x in [0xC, 0xA, 0xF, 0xE, 0xB, 0xA, 0xB, 0xE]:
-            yield self.dut.bus.d.i.eq(x)
+            yield self.dut.qspi.d.i.eq(x)
             yield
 
-        yield self.dut.bus.d.i.eq(0)
+        yield self.dut.qspi.d.i.eq(0)
         yield
 
         yield from self.advance_cycles(20) 
@@ -275,18 +274,18 @@ class QSPIFlashWishboneInterfaceTest(ModuleTestCase):
 
     def traces_of_interest(self):
         return [
-            self.dut.bus.sck,
-            self.dut.bus.cs_n,
-            self.dut.bus.d.i,
-            self.dut.bus.d.o,
-            self.dut.bus.d.oe,
+            self.dut.qspi.sck,
+            self.dut.qspi.cs_n,
+            self.dut.qspi.d.i,
+            self.dut.qspi.d.o,
+            self.dut.qspi.d.oe,
 
-            self.dut.wb.cyc,
-            self.dut.wb.stb,
-            self.dut.wb.stall,
-            self.dut.wb.ack,
-            self.dut.wb.adr,
-            self.dut.wb.dat_r
+            self.dut.bus.cyc,
+            self.dut.bus.stb,
+            self.dut.bus.stall,
+            self.dut.bus.ack,
+            self.dut.bus.adr,
+            self.dut.bus.dat_r
         ]
 
     @sync_test_case
@@ -295,23 +294,23 @@ class QSPIFlashWishboneInterfaceTest(ModuleTestCase):
 
         #
 
-        yield self.dut.wb.adr.eq(0x876543)
-        yield self.dut.wb.cyc.eq(1)
-        yield self.dut.wb.stb.eq(1)
+        yield self.dut.bus.adr.eq(0x876543)
+        yield self.dut.bus.cyc.eq(1)
+        yield self.dut.bus.stb.eq(1)
         yield
-        yield self.dut.wb.stb.eq(0)
+        yield self.dut.bus.stb.eq(0)
         yield
 
         yield from self.advance_cycles(20)
 
         for x in [0xF, 0xE, 0xD, 0xC, 0xB, 0xA, 0x9, 0x8]:
-            yield self.dut.bus.d.i.eq(x)
+            yield self.dut.qspi.d.i.eq(x)
             yield
 
-        yield self.dut.bus.d.i.eq(0)
+        yield self.dut.qspi.d.i.eq(0)
         yield        
 
-        yield self.dut.wb.cyc.eq(0)
+        yield self.dut.bus.cyc.eq(0)
         yield
 
         yield from self.advance_cycles(5)
@@ -319,43 +318,43 @@ class QSPIFlashWishboneInterfaceTest(ModuleTestCase):
 
         #
 
-        yield self.dut.wb.adr.eq(0x876544)
-        yield self.dut.wb.cyc.eq(1)
-        yield self.dut.wb.stb.eq(1)
+        yield self.dut.bus.adr.eq(0x876544)
+        yield self.dut.bus.cyc.eq(1)
+        yield self.dut.bus.stb.eq(1)
         yield
-        yield self.dut.wb.stb.eq(0)   
+        yield self.dut.bus.stb.eq(0)   
 
         for x in [0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0]:
-            yield self.dut.bus.d.i.eq(x)
+            yield self.dut.qspi.d.i.eq(x)
             yield
 
-        yield self.dut.bus.d.i.eq(0)
+        yield self.dut.qspi.d.i.eq(0)
         yield
 
-        yield self.dut.wb.cyc.eq(0)
+        yield self.dut.bus.cyc.eq(0)
         yield
 
         yield from self.advance_cycles(5)
 
         #
 
-        yield self.dut.wb.adr.eq(0x876546)
-        yield self.dut.wb.cyc.eq(1)
-        yield self.dut.wb.stb.eq(1)
+        yield self.dut.bus.adr.eq(0x876546)
+        yield self.dut.bus.cyc.eq(1)
+        yield self.dut.bus.stb.eq(1)
         yield
-        yield self.dut.wb.stb.eq(0)
+        yield self.dut.bus.stb.eq(0)
         yield
 
         yield from self.advance_cycles(28)
 
         for x in [0xC, 0xA, 0xF, 0xE, 0xB, 0xA, 0xB, 0xE]:
-            yield self.dut.bus.d.i.eq(x)
+            yield self.dut.qspi.d.i.eq(x)
             yield
 
-        yield self.dut.bus.d.i.eq(0)
+        yield self.dut.qspi.d.i.eq(0)
         yield
 
-        yield self.dut.wb.cyc.eq(0)
+        yield self.dut.bus.cyc.eq(0)
         yield
 
         yield from self.advance_cycles(20)
