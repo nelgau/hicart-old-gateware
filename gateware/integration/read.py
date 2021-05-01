@@ -7,6 +7,7 @@ from nmigen_soc import wishbone
 from interface.qspi_flash import QSPIBus, QSPIFlashWishboneInterface
 from n64.ad16 import AD16
 from n64.pi import PIWishboneInitiator
+from soc.wishbone import DownConverter, Translator
 from test.driver.ad16 import PIInitiator
 from test.emulator.qspi_flash import QSPIFlashEmulator
 
@@ -24,13 +25,15 @@ class DUT(Elaboratable):
 
         initiator = PIWishboneInitiator()
         flash_interface = QSPIFlashWishboneInterface()
+        translator = Translator(sub_bus=flash_interface.bus, base_addr=0x800000)
         
         decoder = wishbone.Decoder(addr_width=32, data_width=32, granularity=8, features={"stall"})
-        decoder.add(flash_interface.bus, addr=0x10000000)
+        decoder.add(translator.bus, addr=0x10000000)
 
         m.submodules.initiator       = initiator
         m.submodules.flash_interface = flash_interface
         m.submodules.decoder         = decoder
+        m.submodules.translator      = translator
 
         m.d.comb += [
             initiator.ad16         .connect( self.ad16 ),
