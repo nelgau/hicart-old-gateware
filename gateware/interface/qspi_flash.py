@@ -23,6 +23,8 @@ class QSPIBus(Record):
 
 class QSPIFlashInterface(Elaboratable):
 
+    # You can change the data width of the interface by adjusting the lines marked with "data width"
+
     def __init__(self):
         self.qspi = QSPIBus()
 
@@ -31,7 +33,7 @@ class QSPIFlashInterface(Elaboratable):
 
         self.idle       = Signal()
         self.valid      = Signal()
-        self.data       = Signal(32)
+        self.data       = Signal(8)                                     # Data width
 
         self._in_shift  = Signal(32)
         self._out_shift = Signal(32)
@@ -43,7 +45,7 @@ class QSPIFlashInterface(Elaboratable):
         cs = Signal()
 
         m.d.sync += [
-            self._in_shift[4:]      .eq(self._in_shift[:28]),
+            self._in_shift[4:]      .eq(self._in_shift[:4]),            # Data width (see _out_shift)
             self._out_shift[4:]     .eq(self._out_shift[:28]),
             self._in_shift[0:4]     .eq(self.qspi.d.i),
             self._out_shift[0:4]    .eq(0),
@@ -118,7 +120,7 @@ class QSPIFlashInterface(Elaboratable):
                 with m.If(self._counter == 0):
                     m.next = "DATA"
                     m.d.sync += [
-                        self._counter           .eq(7),
+                        self._counter           .eq(1),                 # Data width
                     ]   
 
             with m.State("DATA"):
@@ -140,7 +142,7 @@ class QSPIFlashInterface(Elaboratable):
                     with m.If(self.address == current_address + 1):
                         m.next = "DATA"
                         m.d.sync += [
-                            self._counter       .eq(7),
+                            self._counter       .eq(1),                 # Data width
                             self.qspi.sck       .eq(1),
                         ]
                     with m.Else():
@@ -157,16 +159,49 @@ class QSPIFlashInterface(Elaboratable):
         return m
 
 
+# class QSPIFlashWishboneInterface(Elaboratable):
+
+#     def __init__(self):
+#         self.qspi = QSPIBus()
+#         self.bus = wishbone.Interface(addr_width=24, data_width=32, granularity=8, features={"stall"})
+
+#         size = 2**26
+#         granularity = 8
+
+#         self.bus.memory_map = MemoryMap(addr_width=log2_int(size), data_width=granularity)
+#         self.bus.memory_map.add_resource(self, size=size)        
+
+#     def elaborate(self, platform):
+#         m = Module()
+
+#         m.submodules.interface = interface = QSPIFlashInterface()
+
+#         m.d.comb += [
+#             interface.qspi          .connect(self.qspi),
+
+#             interface.start         .eq(self.bus.cyc & self.bus.stb),
+#             interface.address       .eq(self.bus.adr),
+
+#             self.bus.stall          .eq(~interface.idle),
+#             self.bus.dat_r          .eq(interface.data),
+#             self.bus.ack            .eq(interface.valid),
+#         ]
+
+#         return m
+
+
+
+
+
 class QSPIFlashWishboneInterface(Elaboratable):
 
     def __init__(self):
         self.qspi = QSPIBus()
-        self.bus = wishbone.Interface(addr_width=24, data_width=32, granularity=8, features={"stall"})
+        self.bus = wishbone.Interface(addr_width=24, data_width=8, features={"stall"})
 
-        size = 2**26
-        granularity = 8
+        size = 2**24
 
-        self.bus.memory_map = MemoryMap(addr_width=log2_int(size), data_width=granularity)
+        self.bus.memory_map = MemoryMap(addr_width=24, data_width=8)
         self.bus.memory_map.add_resource(self, size=size)        
 
     def elaborate(self, platform):
@@ -186,6 +221,9 @@ class QSPIFlashWishboneInterface(Elaboratable):
         ]
 
         return m
+
+
+
 
 
 class QSPIFlashInterfaceTest(ModuleTestCase):

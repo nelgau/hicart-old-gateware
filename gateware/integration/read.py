@@ -20,25 +20,33 @@ class DUT(Elaboratable):
         self.ad16 = AD16()
         self.qspi = QSPIBus()
 
+        
+        self.flash_interface = QSPIFlashWishboneInterface()
+
+        self.down_converter = DownConverter(sub_bus=self.flash_interface.bus,
+                                       addr_width=22,
+                                       data_width=32,
+                                       granularity=8,
+                                       features={"stall"})        
+
     def elaborate(self, platform):
         m = Module()
 
         initiator = PIWishboneInitiator()
-        flash_interface = QSPIFlashWishboneInterface()
-        translator = Translator(sub_bus=flash_interface.bus, base_addr=0x800000)
+        # translator = Translator(sub_bus=flash_interface.bus, base_addr=0x800000)
         
         decoder = wishbone.Decoder(addr_width=32, data_width=32, granularity=8, features={"stall"})
-        decoder.add(translator.bus, addr=0x10000000)
+        decoder.add(self.down_converter.bus, addr=0x10000000)
 
         m.submodules.initiator       = initiator
-        m.submodules.flash_interface = flash_interface
+        m.submodules.flash_interface = self.flash_interface
         m.submodules.decoder         = decoder
-        m.submodules.translator      = translator
+        m.submodules.down_converter  = self.down_converter
 
         m.d.comb += [
-            initiator.ad16         .connect( self.ad16 ),
-            initiator.bus          .connect( decoder.bus ),
-            flash_interface.qspi   .connect( self.qspi ),
+            initiator.ad16              .connect( self.ad16 ),
+            initiator.bus               .connect( decoder.bus ),
+            self.flash_interface.qspi   .connect( self.qspi ),
         ]
 
         return m
@@ -59,6 +67,9 @@ class DUT(Elaboratable):
             self.qspi.d.i,
             self.qspi.d.o,
             self.qspi.d.oe,
+
+            self.down_converter.bus,
+            self.flash_interface.bus,
         ]
 
 
@@ -79,11 +90,16 @@ class N64ReadTest(MultiProcessTestCase):
 
         def pi_process():
             yield from pi.begin()
-            yield from pi.read_burst_slow(0x10000000, 2)
-            yield from pi.read_burst_fast(0x10000000, 32)
+
+            for i in range(4):
+                base_address = 0x10000000 + 4 * i
+                yield from pi.read_burst_slow(base_address, 2)
+
+            yield from pi.read_burst_fast(0x10000000, 256)
+            yield from pi.read_burst_fast(0x10000000, 256)
 
         with self.simulate(dut, traces=dut.ports()) as sim:
-            sim.add_clock(1.0 / 80e6, domain='sync')
+            sim.add_clock(1.0 / 60e6, domain='sync')
             sim.add_sync_process(flash_process)
             sim.add_process(pi_process)
 

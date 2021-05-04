@@ -13,6 +13,9 @@ class PIWishboneInitiator(Elaboratable):
         self.bus = wishbone.Interface(addr_width=32, data_width=32, features={"stall"})
         self.ad16 = AD16()
 
+        self.late_block = Signal()
+        self.late_read = Signal()
+
     def elaborate(self, platform):
         m = Module()
 
@@ -30,7 +33,10 @@ class PIWishboneInitiator(Elaboratable):
             interface.bus       .connect( decoder.bus   ),
             decoder.direct      .connect( direct.bbus   ),
             decoder.buffered    .connect( buffered.bbus ),
-            arbiter.bus         .connect( self.bus      )
+            arbiter.bus         .connect( self.bus      ),
+
+            self.late_block     .eq(interface.late_block),
+            self.late_read      .eq(interface.late_read),
         ]
 
         return m

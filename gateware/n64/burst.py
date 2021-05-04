@@ -115,7 +115,7 @@ class BufferedBurst2Wishbone(Elaboratable):
                     m.next = "OP_BEGIN"
                     m.d.sync += [
                         base                    .eq(self.bbus.base),
-                        offset                  .eq(self.bbus.off),
+                        offset                  .eq(0),
                     ]
 
             with m.State("OP_BEGIN"):

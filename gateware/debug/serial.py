@@ -45,4 +45,4 @@ class FT245Reader():
     def run(self):
         while True:
             payload = self._port.read(self.byte_width)
-            print(payload.hex(' ')) 
+            print(bytes(reversed(payload)).hex(' '))

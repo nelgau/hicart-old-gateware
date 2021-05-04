@@ -30,6 +30,29 @@ class HomeInvaderRevADomainGenerator(Elaboratable):
         clk40  = Signal()
         clk20  = Signal()
 
+
+        # 60 Mhz sync clock
+        # ref_div  = 1
+        # fb_div   = 5
+        # clk0_div = 10
+        # clk1_div = 15
+        # clk2_div = 30
+        # clk0_freq = "60"
+        # clk1_freq = "40"
+        # clk2_freq = "20"
+
+        # 80 Mhz sync clock
+        ref_div  = 3
+        fb_div   = 20
+        clk0_div = 7
+        clk1_div = 14
+        clk2_div = 28
+        clk0_freq = "80"
+        clk1_freq = "40"
+        clk2_freq = "20"        
+
+
+
         m.submodules.pll = Instance("EHXPLLL",
                 # Clock in
                 i_CLKI=input_clock,
@@ -51,21 +74,21 @@ class HomeInvaderRevADomainGenerator(Elaboratable):
                 p_OUTDIVIDER_MUXB="DIVB",
                 p_OUTDIVIDER_MUXC="DIVC",
                 p_OUTDIVIDER_MUXD="DIVD",
-                p_CLKI_DIV = 3,            
+                p_CLKI_DIV = ref_div,                     # Was 3           
                 p_CLKOP_ENABLE = "ENABLED",
-                p_CLKOP_DIV = 7,                   # Was 7
+                p_CLKOP_DIV = clk0_div,                   # Was 7
                 p_CLKOP_CPHASE = 3,
                 p_CLKOP_FPHASE = 0,
                 p_CLKOS_ENABLE = "ENABLED",
-                p_CLKOS_DIV = 15,
+                p_CLKOS_DIV = clk1_div,
                 p_CLKOS_CPHASE = 3,
                 p_CLKOS_FPHASE = 0,
                 p_CLKOS2_ENABLE = "ENABLED",
-                p_CLKOS2_DIV = 30,
+                p_CLKOS2_DIV = clk2_div,
                 p_CLKOS2_CPHASE = 3,
                 p_CLKOS2_FPHASE = 0,                
                 p_FEEDBK_PATH = "CLKOP",
-                p_CLKFB_DIV = 20,                   # Was 20
+                p_CLKFB_DIV = fb_div,                   # Was 20
 
                 # Internal feedback
                 i_CLKFB=clk80,
@@ -85,9 +108,9 @@ class HomeInvaderRevADomainGenerator(Elaboratable):
 
                 # Synthesis attributes.
                 a_FREQUENCY_PIN_CLKI="12",
-                a_FREQUENCY_PIN_CLKOP="80",         # Was 80
-                a_FREQUENCY_PIN_CLKOS="40",
-                a_FREQUENCY_PIN_CLKOS2="20",
+                a_FREQUENCY_PIN_CLKOP=clk0_freq,         # Was 80
+                a_FREQUENCY_PIN_CLKOS=clk1_freq,
+                a_FREQUENCY_PIN_CLKOS2=clk2_freq,
                 a_ICP_CURRENT="12",
                 a_LPF_RESISTOR="8",
                 a_MFG_ENABLE_FILTEROPAMP="1",
