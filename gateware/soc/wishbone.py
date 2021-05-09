@@ -5,6 +5,8 @@ from nmigen_soc.memory import MemoryMap
 from nmigen_soc.wishbone import Interface
 
 from test import *
+from test.driver.wishbone import WishboneInitiator
+from test.emulator.wishbone import WishboneEmulator
 
 
 class DownConverter(Elaboratable):
@@ -34,54 +36,82 @@ class DownConverter(Elaboratable):
 
         dw_from = len(self.bus.dat_w)
         dw_to   = len(self.sub_bus.dat_w)
-        ratio   = dw_from // dw_to
+        ratio   = dw_from // dw_to        
 
-        address = Signal(self.addr_width)
-        counter = Signal(range(ratio))
+        stb_counter = Signal(range(ratio))
+        ack_counter = Signal(range(ratio))
+
+        #
+        # Control Path
+        # 
 
         with m.FSM() as fsm:
 
             m.d.comb += [
-                self.bus.stall.eq(~fsm.ongoing("IDLE")),
-                self.sub_bus.adr.eq(Cat(counter, address)),
+                self.bus.stall.eq(~fsm.ongoing("IDLE") & ~self.bus.ack),                
             ]
 
             with m.State("IDLE"):
-                m.d.sync += counter.eq(0)
                 with m.If(self.bus.cyc & self.bus.stb):
-                    m.next = "BEGIN"
-                    m.d.sync += [
-                        address.eq(self.bus.adr)                        
-                    ]
+                    m.next = "SENDING"
 
-            with m.State("BEGIN"):
+            with m.State("SENDING"):
                 m.d.comb += self.sub_bus.cyc.eq(1)
                 m.d.comb += self.sub_bus.stb.eq(1)
 
                 with m.If(~self.sub_bus.stall):
-                    m.next = "WAIT"
 
-            with m.State("WAIT"):
+                    with m.If(stb_counter == (ratio - 1)):
+                        m.next = "WAITING"
+
+            with m.State("WAITING"):
                 m.d.comb += self.sub_bus.cyc.eq(1)
 
                 with m.If(self.sub_bus.ack):
-                    m.d.sync += counter.eq(counter + 1)
-                    m.next = "BEGIN"
-
-                    with m.If(counter == (ratio - 1)):
+                    with m.If(ack_counter == (ratio - 1)):
                         m.d.comb += self.bus.ack.eq(1)
+
                         m.next = "IDLE"
 
-        # Write datapath
-        m.d.comb += self.sub_bus.dat_w.eq(self.bus.word_select(counter, dw_to))
+                        with m.If(self.bus.cyc & self.bus.stb):
+                            m.next = "SENDING"                
 
-        # Read datapath
+
+        # Counters
+
+        with m.If(self.sub_bus.cyc & self.sub_bus.stb & ~self.sub_bus.stall):
+            m.d.sync += stb_counter.eq(stb_counter + 1)
+
+        with m.If(self.sub_bus.ack):
+            m.d.sync += ack_counter.eq(ack_counter + 1)
+
+        with m.If(self.bus.cyc & self.bus.stb & ~self.bus.stall):
+            m.d.sync += stb_counter.eq(0)
+            m.d.sync += ack_counter.eq(0)
+
+        #
+        # Data Path
+        #
+
+        # Address
+
+        address = Signal(self.addr_width, reset_less=True)
+
+        with m.If(self.bus.cyc & self.bus.stb & ~self.bus.stall):
+            m.d.sync += address.eq(self.bus.adr)
+
+        m.d.comb += self.sub_bus.adr.eq(Cat(stb_counter, address))            
+
+        # Write
+
+        m.d.comb += self.sub_bus.dat_w.eq(self.bus.word_select(stb_counter, dw_to))
+
+        # Read
+
         dat_r = Signal(dw_from, reset_less=True)
-
 
         # m.d.comb += self.bus.dat_r.eq(Cat(dat_r[dw_to:], self.sub_bus.dat_r))          # Little Endian
         m.d.comb += self.bus.dat_r.eq(Cat(self.sub_bus.dat_r, dat_r[:dw_from - dw_to]))    # Big Endian
-
 
         with m.If(self.sub_bus.ack):
             m.d.sync += dat_r.eq(self.bus.dat_r)
@@ -123,45 +153,73 @@ class DownConverterTest(MultiProcessTestCase):
 
     def test_simple(self):
         sub_bus = Interface(addr_width=24, data_width=8, features={"stall"})
-        dut = DownConverter(sub_bus=sub_bus, addr_width=22, data_width=32, features={"stall"})
+        sub_bus.memory_map = MemoryMap(addr_width=24, data_width=8)
+
+        dut = DownConverter(sub_bus=sub_bus, addr_width=22, data_width=32,
+            granularity=8, features={"stall"})
+
+        intr_driver = WishboneInitiator(dut.bus)
+        sub_emulator = WishboneEmulator(sub_bus)
 
         def intr_process():
             yield
 
-            yield dut.bus.cyc.eq(1)
-            yield dut.bus.stb.eq(1)
-            yield dut.bus.adr.eq(0x00040000)
-            yield dut.bus.we.eq(0)
-            yield
+            yield from intr_driver.read_once(0x00040000)
 
-            yield dut.bus.stb.eq(0)
-            yield
+            # yield dut.bus.cyc.eq(1)
+            # yield dut.bus.stb.eq(1)
+            # yield dut.bus.adr.eq(0x00040000)
+            # yield dut.bus.we.eq(0)
+            # yield
 
-            for i in range(100):
-                yield
+            # yield dut.bus.stb.eq(0)
+            # yield
+
+            # for i in range(3):
+            #     yield
+
+            # yield dut.bus.stb.eq(1)
+            # yield
+
+            # yield dut.bus.stb.eq(0)
+            # yield
+
+            # for i in range(4):
+            #     yield
+
+            # yield dut.bus.cyc.eq(0)
+            # yield            
 
         def sub_process():
             yield Passive()
+            yield from sub_emulator.emulate()
 
-            counter = 0
+            # delay = 2
+            # max_outstanding = 2
 
-            while True:
-                while not (yield sub_bus.cyc & sub_bus.stb):
-                    yield
+            # counter = 0
+            # pipeline = [0 for _ in range(delay)]
+            # stalled = False
 
-                yield sub_bus.stall.eq(1)
+            # while True:
+            #     did_accept = (yield sub_bus.cyc & sub_bus.stb) and not stalled
 
-                for i in range(5):
-                    yield
-                
-                yield sub_bus.dat_r.eq(counter)
-                yield sub_bus.ack.eq(1)
-                yield
+            #     accept_adr = yield sub_bus.adr
+            #     accept_dat_w = yield sub_bus.dat_w
+            #     accept_we = yield sub_bus.we 
 
-                yield sub_bus.stall.eq(0)
-                yield sub_bus.ack.eq(0)
+            #     pipeline.append(did_accept)
+            #     should_ack, pipeline = pipeline[0], pipeline[1:]
 
-                counter += 1
+            #     stalled = sum(pipeline) >= max_outstanding
+
+            #     yield sub_bus.dat_r.eq(counter)
+            #     yield sub_bus.ack.eq(should_ack)
+            #     yield sub_bus.stall.eq(stalled)
+            #     yield
+
+            #     if should_ack == 1:
+            #         counter += 1
 
         with self.simulate(dut, traces=dut.ports()) as sim:
             sim.add_clock(1.0 / 100e6, domain='sync')
