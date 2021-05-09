@@ -43,7 +43,9 @@ class DownConverter(Elaboratable):
 
         #
         # Control Path
-        # 
+        #
+
+        # State Machine
 
         with m.FSM() as fsm:
 
@@ -76,8 +78,7 @@ class DownConverter(Elaboratable):
                         with m.If(self.bus.cyc & self.bus.stb):
                             m.next = "SENDING"                
 
-
-        # Counters
+        # Strobe/Ack Counters
 
         with m.If(self.sub_bus.cyc & self.sub_bus.stb & ~self.sub_bus.stall):
             m.d.sync += stb_counter.eq(stb_counter + 1)
@@ -159,67 +160,15 @@ class DownConverterTest(MultiProcessTestCase):
             granularity=8, features={"stall"})
 
         intr_driver = WishboneInitiator(dut.bus)
-        sub_emulator = WishboneEmulator(sub_bus)
+        sub_emulator = WishboneEmulator(sub_bus, delay=1, max_outstanding=1)
 
         def intr_process():
-            yield
-
-            yield from intr_driver.read_once(0x00040000)
-
-            # yield dut.bus.cyc.eq(1)
-            # yield dut.bus.stb.eq(1)
-            # yield dut.bus.adr.eq(0x00040000)
-            # yield dut.bus.we.eq(0)
-            # yield
-
-            # yield dut.bus.stb.eq(0)
-            # yield
-
-            # for i in range(3):
-            #     yield
-
-            # yield dut.bus.stb.eq(1)
-            # yield
-
-            # yield dut.bus.stb.eq(0)
-            # yield
-
-            # for i in range(4):
-            #     yield
-
-            # yield dut.bus.cyc.eq(0)
-            # yield            
+            yield from intr_driver.begin()
+            yield from intr_driver.read_sequential(5, 0x00040000, 7)
 
         def sub_process():
             yield Passive()
             yield from sub_emulator.emulate()
-
-            # delay = 2
-            # max_outstanding = 2
-
-            # counter = 0
-            # pipeline = [0 for _ in range(delay)]
-            # stalled = False
-
-            # while True:
-            #     did_accept = (yield sub_bus.cyc & sub_bus.stb) and not stalled
-
-            #     accept_adr = yield sub_bus.adr
-            #     accept_dat_w = yield sub_bus.dat_w
-            #     accept_we = yield sub_bus.we 
-
-            #     pipeline.append(did_accept)
-            #     should_ack, pipeline = pipeline[0], pipeline[1:]
-
-            #     stalled = sum(pipeline) >= max_outstanding
-
-            #     yield sub_bus.dat_r.eq(counter)
-            #     yield sub_bus.ack.eq(should_ack)
-            #     yield sub_bus.stall.eq(stalled)
-            #     yield
-
-            #     if should_ack == 1:
-            #         counter += 1
 
         with self.simulate(dut, traces=dut.ports()) as sim:
             sim.add_clock(1.0 / 100e6, domain='sync')

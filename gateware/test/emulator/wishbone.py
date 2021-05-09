@@ -4,7 +4,6 @@ from nmigen.sim import *
 
 @dataclass
 class _Task:
-
     address: int
     is_write: bool
     write_data: int
