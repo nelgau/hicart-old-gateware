@@ -94,7 +94,7 @@ class BufferedBurst2Wishbone(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        storage = Memory(width=32, depth=127)
+        storage = Memory(width=32, depth=128)
 
         m.submodules.agen   = agen   = _AddressGenerator()
         m.submodules.w_port = w_port = storage.write_port()
