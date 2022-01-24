@@ -221,6 +221,16 @@ class HomeInvaderRevAPlatform(LatticeECP5Platform):
             Subsignal("dq3",        Pins("N7", dir="io")),
         ),
 
+        Resource("ram", 0,
+            Subsignal("clk",        DiffPairs("J1", "J2", dir="o"), Attrs(IO_TYPE="LVCMOS18D")),
+            Subsignal("dq",         Pins("C1 F2 B2 C3 B1 D3 E1 F3", dir="io")),
+            Subsignal("rwds",       Pins("D1", dir="io")),
+            Subsignal("cs",         PinsN("K1", dir="o")),
+            Subsignal("reset",      PinsN("K2", dir="o")),
+
+            Attrs(IO_TYPE="LVCMOS18", SLEWRATE="FAST")
+        ),
+
         Resource("pmod", 0,
             Subsignal("d",        Pins("C4 C5 C6 C7 D4 D5 D6 D7", dir="io"))
         ),
