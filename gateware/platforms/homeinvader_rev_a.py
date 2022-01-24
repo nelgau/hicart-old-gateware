@@ -244,7 +244,7 @@ class HomeInvaderRevAPlatform(LatticeECP5Platform):
         overrides.update(kwargs)
         return super().toolchain_prepare(fragment, name, **overrides)
 
-    def toolchain_program(self, products, name):
+    def toolchain_program(self, products, name, **kwargs):
         ecpprog = os.environ.get("ECPPROG", "ecpprog")
         with products.extract("{}.bit".format(name)) as bitstream_filename:
             subprocess.check_call([ecpprog, "-d", "s:0x0403:0x6010:FT5YLSVU", "-I", "B", "-S", bitstream_filename])

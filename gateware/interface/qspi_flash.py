@@ -199,10 +199,8 @@ class QSPIFlashWishboneInterface(Elaboratable):
         self.qspi = QSPIBus()
         self.bus = wishbone.Interface(addr_width=24, data_width=8, features={"stall"})
 
-        size = 2**24
-
         self.bus.memory_map = MemoryMap(addr_width=24, data_width=8)
-        self.bus.memory_map.add_resource(self, size=size)        
+        self.bus.memory_map.add_resource(self, size=2**24)
 
     def elaborate(self, platform):
         m = Module()

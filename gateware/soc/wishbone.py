@@ -36,7 +36,7 @@ class DownConverter(Elaboratable):
 
         dw_from = len(self.bus.dat_w)
         dw_to   = len(self.sub_bus.dat_w)
-        ratio   = dw_from // dw_to        
+        ratio   = dw_from // dw_to
 
         stb_counter = Signal(range(ratio))
         ack_counter = Signal(range(ratio))
@@ -126,29 +126,42 @@ class DownConverter(Elaboratable):
         ]
 
 class Translator(Elaboratable):
-    pass
+    """Bus Translator
 
-    # def __init__(self, *, sub_bus, base_addr, size, addr_width, features=frozenset()):
-    #     self.sub_bus = sub_bus
-    #     self.base_addr = base_addr
-    #     self.size = size
+    A resource for accessing a range of addresses on a subordinate bus.
+    """
+    def __init__(self, *, sub_bus, base_addr, addr_width, features=frozenset()):
+        self.sub_bus = sub_bus
+        self.base_addr = base_addr
 
-    #     self.bus = Interface(addr_width=addr_width,
-    #                          data_width=sub_bus.data_width,
-    #                          granularity=sub_bus.granularity,
-    #                          features=features) 
+        self.bus = Interface(addr_width=addr_width,
+                             data_width=sub_bus.data_width,
+                             granularity=sub_bus.granularity,
+                             features=features)
 
-    #     self.bus.memory_map = self.sub_bus.memory_map
+        # FIXME: It would be possible to implement this so that the resources
+        # on the subordinate bus are visible, removing the need to create this
+        # hacky placeholder resource. Unfortunately, because it's possible to
+        # slice a resource using a translator, we'd need a way to represent
+        # a subset of a resource and that doesn't seem trivial to do.
+        self.bus.memory_map = MemoryMap(addr_width=addr_width, data_width=sub_bus.data_width)
+        self.bus.memory_map.add_resource(self, size=2**addr_width)
 
-    # def elaborate(self, platform):
-    #     m = Module()
+    def elaborate(self, platform):
+        m = Module()
 
-    #     m.d.comb += [
-    #         self.bus        .connect(self.sub_bus, exclude={"adr"}),
-    #         self.bus.adr    .eq(self.sub_bus.adr + self.base_addr),
-    #     ]
+        # If the result of the addition is automatically extended to the width
+        # of the subordinate bus, this auxiliary signal is unnecessary.
+        adr_extended = Signal.like(self.sub_bus.adr)
 
-    #     return m
+        m.d.comb += [
+            self.bus            .connect(self.sub_bus, exclude={"adr"}),
+
+            adr_extended        .eq(self.bus.adr),
+            self.sub_bus.adr    .eq(adr_extended + self.base_addr),
+        ]
+
+        return m
 
 class DownConverterTest(MultiProcessTestCase):
 

@@ -43,6 +43,7 @@ class FT245Reader():
         self._port.reset_input_buffer()
 
     def run(self):
+        print("Listening for serial data...")
         while True:
             payload = self._port.read(self.byte_width)
             print(bytes(reversed(payload)).hex(' '))

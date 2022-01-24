@@ -9,7 +9,7 @@ from debug.serial import FT245Reader
 from n64.cic import CIC
 from n64.pi import PIWishboneInitiator
 from interface.qspi_flash import QSPIFlashWishboneInterface
-from soc.wishbone import DownConverter
+from soc.wishbone import DownConverter, Translator
 from utils.cli import main_runner
 
 
@@ -42,15 +42,21 @@ class Top(Elaboratable):
         m.submodules.flash_interface = self.flash_interface = flash_interface = QSPIFlashWishboneInterface()
         m.submodules.flash_connector = self.flash_connector = flash_connector = platform.flash_connector()
 
-        down_converter = DownConverter(sub_bus=flash_interface.bus,
+        translator = Translator(sub_bus=flash_interface.bus,
+                                base_addr=0x800000,
+                                addr_width=24,
+                                features={"stall"})
+
+        down_converter = DownConverter(sub_bus=translator.bus,
                                        addr_width=22,
                                        data_width=32,
                                        granularity=8,
-                                       features={"stall"})   
+                                       features={"stall"})
 
         decoder = wishbone.Decoder(addr_width=32, data_width=32, granularity=8, features={"stall"})
         decoder.add(down_converter.bus, addr=0x10000000)
 
+        m.submodules.translator = translator
         m.submodules.down_converter = down_converter
         m.submodules.decoder = decoder
 

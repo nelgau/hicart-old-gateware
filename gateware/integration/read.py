@@ -20,27 +20,31 @@ class DUT(Elaboratable):
         self.ad16 = AD16()
         self.qspi = QSPIBus()
 
-        
         self.flash_interface = QSPIFlashWishboneInterface()
 
-        self.down_converter = DownConverter(sub_bus=self.flash_interface.bus,
-                                       addr_width=22,
-                                       data_width=32,
-                                       granularity=8,
-                                       features={"stall"})        
+        self.translator = Translator(sub_bus=self.flash_interface.bus,
+                                        base_addr=0x800000,
+                                        addr_width=24,
+                                        features={"stall"})
+
+        self.down_converter = DownConverter(sub_bus=self.translator.bus,
+                                        addr_width=22,
+                                        data_width=32,
+                                        granularity=8,
+                                        features={"stall"})
 
     def elaborate(self, platform):
         m = Module()
 
         initiator = PIWishboneInitiator()
-        # translator = Translator(sub_bus=flash_interface.bus, base_addr=0x800000)
         
         decoder = wishbone.Decoder(addr_width=32, data_width=32, granularity=8, features={"stall"})
         decoder.add(self.down_converter.bus, addr=0x10000000)
 
         m.submodules.initiator       = initiator
-        m.submodules.flash_interface = self.flash_interface
         m.submodules.decoder         = decoder
+        m.submodules.flash_interface = self.flash_interface
+        m.submodules.translator      = self.translator
         m.submodules.down_converter  = self.down_converter
 
         m.d.comb += [
@@ -69,6 +73,7 @@ class DUT(Elaboratable):
             self.qspi.d.oe,
 
             self.down_converter.bus,
+            self.translator.bus,
             self.flash_interface.bus,
         ]
 
@@ -81,7 +86,12 @@ class N64ReadTest(MultiProcessTestCase):
         with open("../roms/sm64.z64", "rb") as f:
             rom_bytes = list(f.read())
 
-        flash = QSPIFlashEmulator(dut.qspi, rom_bytes)
+        flash_bytes = []
+        flash_bytes += [0xFF] * 2**23
+        # The ROM segment begins at offset 0x800000
+        flash_bytes += rom_bytes
+
+        flash = QSPIFlashEmulator(dut.qspi, flash_bytes)
         pi = PIInitiator(dut.ad16)
 
         def flash_process():
