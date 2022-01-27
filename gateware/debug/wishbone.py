@@ -253,11 +253,11 @@ class StreamWishboneCommanderTest(MultiProcessTestCase):
             yield from sink_driver.begin()
 
             # Read command
-            print((yield from sink_driver.consume_many(4)))
-            print((yield from sink_driver.consume()))
+            yield from sink_driver.consume_many(4)
+            yield from sink_driver.consume()
 
             # Write command
-            print((yield from sink_driver.consume()))
+            yield from sink_driver.consume()
 
         with self.simulate(dut, traces=dut.ports()) as sim:
             sim.add_clock(1.0 / 100e6, domain='sync')

@@ -18,13 +18,13 @@ class StreamDriver:
             yield self.stream.valid.eq(1)
             yield Settle()
 
-            waited = False
+            did_advance = False
 
             while not (yield self.stream.ready):
-                waited = True
+                did_advance = True
                 yield
 
-            if not waited:
+            if not did_advance:
                 yield
 
         yield self.stream.payload.eq(0)
@@ -41,15 +41,15 @@ class StreamDriver:
         yield Settle()
 
         while len(results) < count:
-            waited = False
+            did_advance = False
 
             while not (yield self.stream.valid):
-                waited = True
+                did_advance = True
                 yield
 
             results.append((yield self.stream.payload))
 
-            if not waited:
+            if not did_advance:
                 yield
 
         yield self.stream.ready.eq(0)
