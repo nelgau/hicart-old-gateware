@@ -52,7 +52,7 @@ class FT245Interface(Elaboratable):
             FFSynchronizer(self.bus.txe, txe, reset=1),
         ]
 
-        count = Signal(8, reset=0)
+        count = Signal(8, reset=0)      # FIXME: Size this more appropriately later!
         rd = Signal(reset=1)
         wr = Signal(reset=1)
 
