@@ -9,10 +9,7 @@ class StreamDriver:
     def begin(self):
         yield
 
-    def produce(self, item):
-        yield from self.produce_many([item])
-
-    def produce_many(self, items):
+    def produce(self, items):
         for item in items:
             yield self.stream.payload.eq(item)
             yield self.stream.valid.eq(1)
@@ -33,10 +30,7 @@ class StreamDriver:
         yield self.stream.valid.eq(0)
         yield
 
-    def consume(self):
-        return (yield from self.consume_many(1))[0]
-
-    def consume_many(self, count):
+    def consume(self, count=1):
         results = []
 
         yield self.stream.ready.eq(1)
