@@ -8,6 +8,7 @@ from nmigen.vendor.lattice_ecp5 import *
 from nmigen_boards.resources import *
 
 from interface.qspi_flash import QSPIBus
+from utils.plat import get_all_resources
 
 __all__ = ["HomeInvaderRevAPlatform"]
 
@@ -242,6 +243,9 @@ class HomeInvaderRevAPlatform(LatticeECP5Platform):
     connectors = [
         Connector("pmod", 0, "C4 C5 C6 C7 - - D4 D5 D6 D7 - -")
     ]
+
+    def get_leds(self):
+        return Cat([l.o for l in get_all_resources(self, 'led')])
 
     @property
     def required_tools(self):

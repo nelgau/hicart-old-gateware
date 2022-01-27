@@ -1,5 +1,4 @@
 import struct
-import itertools
 
 from nmigen import *
 from nmigen.build import *
@@ -18,17 +17,7 @@ class Top(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        def get_all_resources(name):
-            resources = []
-            for number in itertools.count():
-                try:
-                    resources.append(platform.request(name, number))
-                except ResourceError:
-                    break
-            return resources
-
-        leds = get_all_resources('led')
-        leds = Cat([l.o for l in leds])
+        leds = platform.get_leds()
 
         m.submodules.car                               = platform.clock_domain_generator()
         m.submodules.cic        = self.cic = cic       = DomainRenamer("cic")(CIC())
