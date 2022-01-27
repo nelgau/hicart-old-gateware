@@ -159,40 +159,6 @@ class QSPIFlashInterface(Elaboratable):
         return m
 
 
-# class QSPIFlashWishboneInterface(Elaboratable):
-
-#     def __init__(self):
-#         self.qspi = QSPIBus()
-#         self.bus = wishbone.Interface(addr_width=24, data_width=32, granularity=8, features={"stall"})
-
-#         size = 2**26
-#         granularity = 8
-
-#         self.bus.memory_map = MemoryMap(addr_width=log2_int(size), data_width=granularity)
-#         self.bus.memory_map.add_resource(self, size=size)        
-
-#     def elaborate(self, platform):
-#         m = Module()
-
-#         m.submodules.interface = interface = QSPIFlashInterface()
-
-#         m.d.comb += [
-#             interface.qspi          .connect(self.qspi),
-
-#             interface.start         .eq(self.bus.cyc & self.bus.stb),
-#             interface.address       .eq(self.bus.adr),
-
-#             self.bus.stall          .eq(~interface.idle),
-#             self.bus.dat_r          .eq(interface.data),
-#             self.bus.ack            .eq(interface.valid),
-#         ]
-
-#         return m
-
-
-
-
-
 class QSPIFlashWishboneInterface(Elaboratable):
 
     def __init__(self):
@@ -219,9 +185,6 @@ class QSPIFlashWishboneInterface(Elaboratable):
         ]
 
         return m
-
-
-
 
 
 class QSPIFlashInterfaceTest(ModuleTestCase):
