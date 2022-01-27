@@ -186,4 +186,4 @@ class DownConverterTest(MultiProcessTestCase):
         with self.simulate(dut, traces=dut.ports()) as sim:
             sim.add_clock(1.0 / 100e6, domain='sync')
             sim.add_sync_process(intr_process)
-            sim.add_sync_process(sub_process)
+            sim.add_sync_process(sub_process)        

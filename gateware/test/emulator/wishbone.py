@@ -11,13 +11,13 @@ class _Task:
 
 class WishboneEmulator:
 
-    def __init__(self, bus, *, delay=0, max_outstanding=None):
+    def __init__(self, bus, *, initial=0, delay=0, max_outstanding=None):
         self.bus = bus
 
         self.delay = delay
         self.max_outstanding = max_outstanding
 
-        self.counter = 0
+        self.counter = initial
         self.stalled = False
 
         self._reset_pipeline()
@@ -69,6 +69,9 @@ class WishboneEmulator:
             yield self.bus.stall.eq(self.stalled)
 
     def _dispatch_task(self, task):
+        if task.is_write:
+            return 0
+
         result = self.counter
         self.counter += 1
         return result
