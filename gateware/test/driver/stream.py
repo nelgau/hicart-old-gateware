@@ -18,6 +18,8 @@ class StreamDriver:
             yield self.stream.valid.eq(1)
             yield Settle()
 
+            # This is necessary because each stream transaction handshake must
+            # span at least one simulation time step.
             did_advance = False
 
             while not (yield self.stream.ready):
@@ -41,6 +43,8 @@ class StreamDriver:
         yield Settle()
 
         while len(results) < count:
+            # This is necessary because each stream transaction handshake must
+            # span at least one simulation time step.
             did_advance = False
 
             while not (yield self.stream.valid):
