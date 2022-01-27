@@ -213,4 +213,3 @@ class Top(Elaboratable):
 
 if __name__ == "__main__":
     main_runner(Top())
-    FT245Reader(4).run()

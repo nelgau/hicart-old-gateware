@@ -67,25 +67,7 @@ class AD16Interface(Elaboratable):
         base = Signal(32)    
         offset = Signal(8)
         index = Signal()
-        valid = Signal()       
-
-
-
-
-        latch_addr = Signal(32)
-        read_count = Signal(16)
-
-
-        if platform is not None:
-            m.submodules.streamer = streamer = FT245Streamer(byte_width=4)
-
-            with m.If(streamer.stream.ready & streamer.stream.valid):
-                m.d.sync += streamer.stream.valid       .eq(0)
-
-
-
-
-
+        valid = Signal()
 
         with m.FSM() as fsm:                #   ALE_L       ALE_H
             with m.State("INIT"):           #   Inactive    Inactive
@@ -100,9 +82,7 @@ class AD16Interface(Elaboratable):
                 with m.If(ale_h_sync):
                     m.next = "C"
 
-                    m.d.sync += base[14:30].eq(ad_i_sync)        
-                    
-                    m.d.sync += latch_addr[16:32].eq(ad_i_sync)
+                    m.d.sync += base[14:30].eq(ad_i_sync)                
 
             with m.State("C"):              #   Inactive    Active
                 with m.If(ale_l_sync):
@@ -110,17 +90,7 @@ class AD16Interface(Elaboratable):
 
                     m.d.sync += base[0:14].eq(ad_i_sync[2:16])
                     m.d.sync += offset.eq(0)
-                    m.d.sync += index.eq(ad_i_sync[1])
-                    
-                    m.d.sync += latch_addr[0:16].eq(ad_i_sync)
-                    m.d.sync += read_count.eq(0)
-
-                    if platform is not None:
-                        m.d.sync += [
-                            streamer.stream.payload     .eq(latch_addr),
-                            streamer.stream.valid       .eq(1)
-                        ]            
-
+                    m.d.sync += index.eq(ad_i_sync[1])                
 
             with m.State("VALID"):          #   Active      Active
                 with m.If(~ale_h_sync):
@@ -159,9 +129,6 @@ class AD16Interface(Elaboratable):
 
             with m.If(~read_data_valid):
                 m.d.comb += self.late_read  .eq(1)
-
-
-            m.d.sync += read_count.eq(read_count + 1)
 
         with m.If(wait_for_ack):
             with m.If(op_read_data_valid):
