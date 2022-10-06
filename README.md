@@ -1,4 +1,4 @@
-# minerva-test
+# hicart-old-gateware
 
 **This repository is no longer maintained!**
 
